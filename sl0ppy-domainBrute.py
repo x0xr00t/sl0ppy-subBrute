@@ -53,9 +53,10 @@ def print_banner():
     print(Style.RESET_ALL)
 
 
-def brute_force_domains(domain, min_length, max_length):
+def brute_force_domains(domain, min_length, max_length, num_answers):
     characters = string.ascii_letters + string.digits + string.punctuation
     found_domains = []
+    found_subdirs = []
 
     total_combinations = 0
     for length in range(min_length, max_length + 1):
@@ -67,8 +68,11 @@ def brute_force_domains(domain, min_length, max_length):
                 subdomain = ''.join(combination)
                 target = subdomain + '.' + domain
                 try:
-                    answers = 'A' * 100
+                    answers = 'A' * num_answers
                     for answer in answers:
+                        # Perform testing here and update the progress bar description accordingly
+                        pbar.set_description(f'Testing: {subdomain} ({answer})')
+                        pbar.update(1)
                         pass
                 except dns.resolver.NXDOMAIN:
                     pass
@@ -78,19 +82,17 @@ def brute_force_domains(domain, min_length, max_length):
                     pass
                 except dns.exception.Timeout:
                     pass
-                except dns.resolver.NoNameservers:
-                    pass
                 else:
-                    found_domains.append(target)
+                    if answer == 'A':
+                        found_domains.append(target)
+                    else:
+                        found_subdirs.append(target)
 
                 # Check CPU usage and limit to 80%
                 if psutil.cpu_percent() > 80:
                     threading.Event().wait(0.1)  # Sleep for 100ms to reduce CPU usage
 
-                pbar.set_description(f'Testing: {subdomain}')  # Update the progress bar description
-                pbar.update(1)  # Increment the progress bar
-
-    return found_domains
+    return found_domains, found_subdirs
 
 
 def main():
@@ -99,6 +101,7 @@ def main():
     parser.add_argument('-d', dest='target_domain', help='Target domain to brute force')
     parser.add_argument('-min', dest='min_length', type=int, default=1, help='Minimum number of characters (default: 1)')
     parser.add_argument('-max', dest='max_length', type=int, default=60, help='Maximum number of characters (default: 60)')
+    parser.add_argument('-A', dest='num_answers', type=int, default=1, help='Number of answers for each subdomain (default: 1)')
 
     args = parser.parse_args()
 
@@ -107,12 +110,16 @@ def main():
         target_domain = args.target_domain
         min_length = args.min_length
         max_length = args.max_length
+        num_answers = args.num_answers
         print_banner()
         print("Brute forcing in progress...")
-        found_domains = brute_force_domains(target_domain, min_length, max_length)
+        found_domains, found_subdirs = brute_force_domains(target_domain, min_length, max_length, num_answers)
         print("\nFound subdomains:")
         for domain in found_domains:
-            print(domain)
+            print(Fore.GREEN + domain + Style.RESET_ALL)
+        print("\nFound subdirectories:")
+        for subdir in found_subdirs:
+            print(Fore.BLUE + subdir + Style.RESET_ALL)
     else:
         parser.print_help()
 
