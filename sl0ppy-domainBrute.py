@@ -4,15 +4,16 @@
 # Author : p.hoogeveen
 # Tool   : Sl0ppy-DomainBrute
 
-import sys
-import dns.resolver
-import string
-import itertools
 import argparse
-from colorama import Fore, Style, init
-import random
-import threading
+import asyncio
+import concurrent.futures
+import dns.exception
+import dns.resolver
+import itertools
 import psutil
+import string
+import threading
+from colorama import Fore, Style, init
 from tqdm import tqdm
 
 def print_banner():
@@ -53,7 +54,7 @@ def print_banner():
     print(Style.RESET_ALL)
 
 
-def brute_force_domains(domain, min_length, max_length, num_answers):
+def brute_force_domains(domain, min_length, max_length, num_answers, enable_subdir, cpu_count, enable_multithread):
     characters = string.ascii_letters + string.digits + string.punctuation
     found_domains = []
     found_subdirs = []
@@ -62,67 +63,93 @@ def brute_force_domains(domain, min_length, max_length, num_answers):
     for length in range(min_length, max_length + 1):
         total_combinations += len(characters) ** length
 
-    with tqdm(total=total_combinations, unit='combination', ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
-        for length in range(min_length, max_length + 1):
-            for combination in itertools.product(characters, repeat=length):
-                subdomain = ''.join(combination)
-                target = subdomain + '.' + domain
-                try:
-                    answers = 'A' * num_answers
-                    for answer in answers:
-                        # Perform testing here and update the progress bar description accordingly
-                        pbar.set_description(f'Testing: {subdomain} ({answer})')
-                        pbar.update(1)
-                        pass
-                except dns.resolver.NXDOMAIN:
-                    pass
-                except dns.resolver.NoAnswer:
-                    pass
-                except dns.resolver.NoNameservers:
-                    pass
-                except dns.exception.Timeout:
-                    pass
-                else:
-                    if answer == 'A':
-                        found_domains.append(target)
-                    else:
-                        found_subdirs.append(target)
+    with tqdm(total=total_combinations, unit='combination', ncols=80,
+              bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
 
-                # Check CPU usage and limit to 80%
-                if psutil.cpu_percent() > 80:
-                    threading.Event().wait(0.1)  # Sleep for 100ms to reduce CPU usage
+        if enable_subdir:
+            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(domain,))
+            subdir_thread.start()
+
+        if enable_multithread:
+            worker_threads = cpu_count
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
+            loop = asyncio.get_event_loop()
+            tasks = []
+
+            for length in range(min_length, max_length + 1):
+                for combination in itertools.product(characters, repeat=length):
+                    subdomain = ''.join(combination)
+                    target = subdomain + '.' + domain
+                    tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains))
+
+            loop.run_until_complete(asyncio.gather(*tasks))
+            loop.close()
+
+        else:
+            for length in range(min_length, max_length + 1):
+                for combination in itertools.product(characters, repeat=length):
+                    subdomain = ''.join(combination)
+                    target = subdomain + '.' + domain
+                    resolve_domain(target, num_answers, pbar, found_domains)
+
+        if enable_subdir:
+            subdir_thread.join()
 
     return found_domains, found_subdirs
 
 
-def main():
-    # Parse the command-line arguments
-    parser = argparse.ArgumentParser(description='Domain brute-forcing script')
-    parser.add_argument('-d', dest='target_domain', help='Target domain to brute force')
-    parser.add_argument('-min', dest='min_length', type=int, default=1, help='Minimum number of characters (default: 1)')
-    parser.add_argument('-max', dest='max_length', type=int, default=60, help='Maximum number of characters (default: 60)')
-    parser.add_argument('-A', dest='num_answers', type=int, default=8, help='Number of answers for each subdomain (default: 8)')
-
-    args = parser.parse_args()
-
-    # Check if the target domain is provided
-    if args.target_domain:
-        target_domain = args.target_domain
-        min_length = args.min_length
-        max_length = args.max_length
-        num_answers = args.num_answers
-        print_banner()
-        print("Brute forcing in progress...")
-        found_domains, found_subdirs = brute_force_domains(target_domain, min_length, max_length, num_answers)
-        print("\nFound subdomains:")
-        for domain in found_domains:
-            print(Fore.GREEN + domain + Style.RESET_ALL)
-        print("\nFound subdirectories:")
-        for subdir in found_subdirs:
-            print(Fore.BLUE + subdir + Style.RESET_ALL)
+def resolve_domain(target, num_answers, pbar, found_domains):
+    try:
+        answers = 'A' * num_answers
+        for answer in answers:
+            # Perform testing here and update the progress bar description accordingly
+            pbar.set_description(f'Testing: {target} ({answer})')
+            pbar.update(1)
+            pass
+    except dns.resolver.NXDOMAIN:
+        pass
+    except dns.resolver.NoAnswer:
+        pass
+    except dns.resolver.NoNameservers:
+        pass
+    except dns.exception.Timeout:
+        pass
     else:
-        parser.print_help()
+        if answer == 'A':
+            found_domains.append(target)
+
+
+def brute_force_subdirs(domain):
+    # Perform subdirectory brute force here
+    pass
+
+
+def main(target_domain, min_length, max_length, num_answers, enable_subdir, cpu_count, enable_multithread):
+    print_banner()
+    print("Brute forcing in progress...")
+    found_domains, found_subdirs = brute_force_domains(target_domain, min_length, max_length, num_answers,
+                                                       enable_subdir, cpu_count, enable_multithread)
+
+    print("\nFound subdomains:")
+    for domain in found_domains:
+        print(Fore.GREEN + domain + Style.RESET_ALL)
+
+    print("\nFound subdirectories:")
+    for subdir in found_subdirs:
+        print(Fore.BLUE + subdir + Style.RESET_ALL)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Domain brute-forcing script')
+    parser.add_argument('-d', dest='target_domain', help='target domain to brute force')
+    parser.add_argument('-min', dest='min_length', type=int, default=1, help='minimum length of subdomains')
+    parser.add_argument('-max', dest='max_length', type=int, default=3, help='maximum length of subdomains')
+    parser.add_argument('-n', dest='num_answers', type=int, default=1, help='number of DNS answers to expect')
+    parser.add_argument('-subdir', dest='enable_subdir', action='store_true', help='enable subdirectory brute force')
+    parser.add_argument('-cpu', dest='cpu_count', type=int, default=1, help='number of CPU cores to use')
+    parser.add_argument('-multithread', dest='enable_multithread', action='store_true',
+                        help='enable multithreaded brute force')
+
+    args = parser.parse_args()
+    main(args.target_domain, args.min_length, args.max_length, args.num_answers, args.enable_subdir,
+         args.cpu_count, args.enable_multithread)
