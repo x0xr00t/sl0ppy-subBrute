@@ -11,6 +11,9 @@ import itertools
 import argparse
 from colorama import Fore, Style, init
 import random
+import threading
+import psutil
+
 
 def print_banner():
     init(autoreset=True)
@@ -24,56 +27,81 @@ def print_banner():
     """
     banner_colors = [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN]
     colored_banner = ""
+    color_index = 0
     for line in banner.splitlines():
         colored_line = ""
         for char in line:
             if char.isalpha():
-                colored_line += random.choice(banner_colors) + char
+                colored_line += banner_colors[color_index % len(banner_colors)] + char
+                color_index += 1
             else:
                 colored_line += char
         colored_banner += colored_line + "\n"
     print(colored_banner)
     print(Style.RESET_ALL)
 
-print_banner()
 
 def brute_force_domains(domain):
     characters = string.ascii_letters + string.digits + string.punctuation
+    found_domains = []
 
+    total_combinations = 0
     for length in range(1, 101):  # Set the desired length of the subdomains (1 to 100 characters)
+        total_combinations += len(characters) ** length
+
+    current_combination = 0
+    for length in range(1, 101):
         for combination in itertools.product(characters, repeat=length):
+            current_combination += 1
             subdomain = ''.join(combination)
             target = subdomain + '.' + domain
             try:
                 answers = 'A' * 100
                 for answer in answers:
-                    print(Fore.GREEN + target + ' -> ' + str(answer))
+                    pass
             except dns.resolver.NXDOMAIN:
-                print(Fore.WHITE + target + ' -> Not Found')
+                pass
             except dns.resolver.NoAnswer:
-                print(Fore.WHITE + target + ' -> No Answer')
+                pass
             except dns.resolver.NoNameservers:
-                print(Fore.WHITE + target + ' -> No Nameservers')
+                pass
             except dns.exception.Timeout:
-                print(Fore.WHITE + target + ' -> DNS Timeout')
+                pass
             except dns.resolver.NoNameservers:
-                print(Fore.WHITE + target + ' -> No Nameservers')
+                pass
+            else:
+                found_domains.append(target)
 
-    print(Style.RESET_ALL)
-    print("\nFound domains:")
-    for domain in found_domains:
-        print(domain)
+            # Check CPU usage and limit to 80%
+            if psutil.cpu_percent() > 80:
+                threading.Event().wait(0.1)  # Sleep for 100ms to reduce CPU usage
 
-# Parse the command-line arguments
-parser = argparse.ArgumentParser(description='Domain brute-forcing script')
-parser.add_argument('-d', dest='target_domain', help='Target domain to brute force')
+            # Print progress percentage
+            progress = (current_combination / total_combinations) * 100
+            print(f"\rProgress: {progress:.2f}%", end='')
 
-args = parser.parse_args()
+    return found_domains
 
-# Check if the target domain is provided
-if args.target_domain:
-    target_domain = args.target_domain
-    print_banner()
-    brute_force_domains(target_domain)
-else:
-    parser.print_help()
+
+def main():
+    # Parse the command-line arguments
+    parser = argparse.ArgumentParser(description='Domain brute-forcing script')
+    parser.add_argument('-d', dest='target_domain', help='Target domain to brute force')
+
+    args = parser.parse_args()
+
+    # Check if the target domain is provided
+    if args.target_domain:
+        target_domain = args.target_domain
+        print_banner()
+        print("Brute forcing in progress...")
+        found_domains = brute_force_domains(target_domain)
+        print("\nFound subdomains:")
+        for domain in found_domains:
+            print(domain)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
