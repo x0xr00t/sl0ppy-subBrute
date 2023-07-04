@@ -35,6 +35,7 @@ def print_banner():
     print(colored_banner)
     print(Style.RESET_ALL)
 
+print_banner()
 
 def brute_force_domains(domain):
     characters = string.ascii_letters + string.digits + string.punctuation
