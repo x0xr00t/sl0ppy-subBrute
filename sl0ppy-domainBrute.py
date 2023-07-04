@@ -53,16 +53,16 @@ def print_banner():
     print(Style.RESET_ALL)
 
 
-def brute_force_domains(domain):
+def brute_force_domains(domain, min_length, max_length):
     characters = string.ascii_letters + string.digits + string.punctuation
     found_domains = []
 
     total_combinations = 0
-    for length in range(1, 60):
+    for length in range(min_length, max_length + 1):
         total_combinations += len(characters) ** length
 
     with tqdm(total=total_combinations, unit='combination', ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
-        for length in range(1, 60):
+        for length in range(min_length, max_length + 1):
             for combination in itertools.product(characters, repeat=length):
                 subdomain = ''.join(combination)
                 target = subdomain + '.' + domain
@@ -97,15 +97,19 @@ def main():
     # Parse the command-line arguments
     parser = argparse.ArgumentParser(description='Domain brute-forcing script')
     parser.add_argument('-d', dest='target_domain', help='Target domain to brute force')
+    parser.add_argument('-min', dest='min_length', type=int, default=1, help='Minimum number of characters (default: 1)')
+    parser.add_argument('-max', dest='max_length', type=int, default=60, help='Maximum number of characters (default: 60)')
 
     args = parser.parse_args()
 
     # Check if the target domain is provided
     if args.target_domain:
         target_domain = args.target_domain
+        min_length = args.min_length
+        max_length = args.max_length
         print_banner()
         print("Brute forcing in progress...")
-        found_domains = brute_force_domains(target_domain)
+        found_domains = brute_force_domains(target_domain, min_length, max_length)
         print("\nFound subdomains:")
         for domain in found_domains:
             print(domain)
