@@ -101,7 +101,7 @@ def main():
     parser.add_argument('-d', dest='target_domain', help='Target domain to brute force')
     parser.add_argument('-min', dest='min_length', type=int, default=1, help='Minimum number of characters (default: 1)')
     parser.add_argument('-max', dest='max_length', type=int, default=60, help='Maximum number of characters (default: 60)')
-    parser.add_argument('-A', dest='num_answers', type=int, default=1, help='Number of answers for each subdomain (default: 1)')
+    parser.add_argument('-A', dest='num_answers', type=int, default=8, help='Number of answers for each subdomain (default: 8)')
 
     args = parser.parse_args()
 
