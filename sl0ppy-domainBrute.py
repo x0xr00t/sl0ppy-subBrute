@@ -19,25 +19,25 @@ from tqdm import tqdm
 def print_banner():
     init(autoreset=True)
     banner = """
-           /$$  /$$$$$$                                                   
-          | $$ /$$$_  $$                                            
-  /$$$$$$$| $$| $$$$\ $$  /$$$$$$   /$$$$$$  /$$   /$$        
+           /$$  /$$$$$$                                            
+          | $$ /$$$_  $$                                                  
+  /$$$$$$$| $$| $$$$\ $$  /$$$$$$   /$$$$$$  /$$   /$$       
  /$$_____/| $$| $$ $$ $$ /$$__  $$ /$$__  $$| $$  | $$ /$$$$$$
 |  $$$$$$ | $$| $$\ $$$$| $$  \ $$| $$  \ $$| $$  | $$|______/
  \____  $$| $$| $$ \ $$$| $$  | $$| $$  | $$| $$  | $$        
  /$$$$$$$/| $$|  $$$$$$/| $$$$$$$/|  $$$$$$$|  $$$$$$$        
-|_______/ |__/ \______/ | $$____/ | $$____/  \____  $$        
+|_______/ |__/ \______/ | $$____/ | $$____/  \____  $$        |
                         | $$      | $$       /$$  | $$                                                          
                         | $$      | $$      |  $$$$$$/                                                          
                         |__/      |__/       \______/                                                           
-                     /$$         /$$$$$$$                        /$$                        
-                    | $$        | $$__  $$                      | $$                        
-  /$$$$$$$ /$$   /$$| $$$$$$$   | $$  \ $$  /$$$$$$  /$$   /$$ /$$$$$$    /$$$$$$   /$$$$$$ 
- /$$_____/| $$  | $$| $$__  $$  | $$$$$$$  /$$__  $$| $$  | $$|_  $$_/   /$$__  $$ /$$__  $$
-|  $$$$$$ | $$  | $$| $$  \ $$  | $$__  $$| $$  \__/| $$  | $$  | $$    | $$$$$$$$| $$  \__/
- \____  $$| $$  | $$| $$  | $$  | $$  \ $$| $$      | $$  | $$  | $$ /$$| $$_____/| $$      
- /$$$$$$$/|  $$$$$$/| $$$$$$$/  | $$$$$$$/| $$      |  $$$$$$/  |  $$$$/|  $$$$$$$| $$      
-|_______/  \______/ |_______/   |_______/ |__/       \______/    \___/   \_______/|__/    
+                     /$$          /$$$$$$$                        /$$                        
+                    | $$         | $$__  $$                      | $$                        
+  /$$$$$$$ /$$   /$$| $$$$$$$    | $$  \ $$  /$$$$$$  /$$   /$$ /$$$$$$    /$$$$$$   /$$$$$$ 
+ /$$_____/| $$  | $$| $$__  $$   | $$$$$$$  /$$__  $$| $$  | $$|_  $$_/   /$$__  $$ /$$__  $$
+|  $$$$$$ | $$  | $$| $$  \ $$   | $$__  $$| $$  \__/| $$  | $$  | $$    | $$$$$$$$| $$  \__/
+ \____  $$| $$  | $$| $$  | $$   | $$  \ $$| $$      | $$  | $$  | $$ /$$| $$_____/| $$      
+ /$$$$$$$/|  $$$$$$/| $$$$$$$/   | $$$$$$$/| $$      |  $$$$$$/  |  $$$$/|  $$$$$$$| $$      
+|_______/  \______/ |_______/    |_______/ |__/       \______/    \___/   \_______/|__/    
     """
 
     color_order = [Fore.RED, Fore.YELLOW]
@@ -71,7 +71,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
             subdir_thread.start()
 
         if enable_multithread:
-            worker_threads = cpu_count
+            worker_threads = min(cpu_count, psutil.cpu_count())
             executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
             loop = asyncio.get_event_loop()
             tasks = []
@@ -144,12 +144,12 @@ if __name__ == "__main__":
     parser.add_argument('-d', dest='target_domain', help='target domain to brute force')
     parser.add_argument('-min', dest='min_length', type=int, default=1, help='minimum length of subdomains')
     parser.add_argument('-max', dest='max_length', type=int, default=3, help='maximum length of subdomains')
-    parser.add_argument('-n', dest='num_answers', type=int, default=1, help='number of DNS answers to expect')
-    parser.add_argument('-subdir', dest='enable_subdir', action='store_true', help='enable subdirectory brute force')
-    parser.add_argument('-cpu', dest='cpu_count', type=int, default=1, help='number of CPU cores to use')
-    parser.add_argument('-multithread', dest='enable_multithread', action='store_true',
-                        help='enable multithreaded brute force')
+    parser.add_argument('-num', dest='num_answers', type=int, default=1, help='number of DNS answers to check')
+    parser.add_argument('-s', dest='enable_subdir', action='store_true', help='enable brute forcing of subdirectories')
+    parser.add_argument('-c', dest='cpu_count', type=int, default=1, help='number of CPU cores to use')
+    parser.add_argument('-m', dest='enable_multithread', action='store_true', help='enable multithreading')
 
     args = parser.parse_args()
-    main(args.target_domain, args.min_length, args.max_length, args.num_answers, args.enable_subdir,
-         args.cpu_count, args.enable_multithread)
+
+    main(args.target_domain, args.min_length, args.max_length, args.num_answers, args.enable_subdir, args.cpu_count,
+         args.enable_multithread)
