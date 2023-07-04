@@ -1,3 +1,10 @@
+#!/env/python
+# Team   : Sl0ppyr00t
+# AKA    : x0xr00t
+# Author : p.hoogeveen
+# Tool   : Sl0ppy-DomainBrute
+
+
 import dns.resolver
 import string
 import itertools
@@ -52,7 +59,9 @@ def brute_force_domains(domain):
                 print(Fore.WHITE + target + ' -> No Nameservers')
 
     print(Style.RESET_ALL)
-
+    print("\nFound domains:")
+    for domain in found_domains:
+        print(domain)
 
 # Parse the command-line arguments
 parser = argparse.ArgumentParser(description='Domain brute-forcing script')
@@ -66,4 +75,4 @@ if args.target_domain:
     print_banner()
     brute_force_domains(target_domain)
 else:
-    print('No target domain provided. Please specify the target domain using the -d option.')
+    parser.print_help()
