@@ -70,7 +70,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
 
         if enable_subdir:
-            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(domain, found_pages))
+            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(domain, found_pages, found_subdirs))
             subdir_thread.start()
 
         if enable_multithread:
@@ -86,7 +86,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
                         target = urljoin(f"https://{domain}/", subdomain)
                     else:
                         target = subdomain + '.' + domain
-                    
+
                     if not is_ipv6(target):
                         tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains, found_pages))
 
@@ -101,7 +101,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
                         target = urljoin(f"https://{domain}/", subdomain)
                     else:
                         target = subdomain + '.' + domain
-                    
+
                     if not is_ipv6(target):
                         resolve_domain(target, num_answers, pbar, found_domains, found_pages)
 
@@ -118,11 +118,11 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
             # Perform testing here and update the progress bar description accordingly
             pbar.set_description(f'Testing: {target} ({answer})')
             pbar.update(1)
-            
+
             response = requests.get(target)
             if response.status_code == 200:
                 found_pages.append(target)
-            
+
     except dns.resolver.NXDOMAIN:
         pass
     except dns.resolver.NoAnswer:
@@ -136,20 +136,52 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
             found_domains.append(target)
 
 
-def brute_force_subdirs(domain, found_pages):
-    # Perform subdirectory brute force here
-    pass
+def brute_force_subdirs(domain, found_pages, found_subdirs):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    total_combinations = len(characters) ** 3  # Adjust the length as needed
+
+    with tqdm(total=total_combinations, unit='combination', ncols=80,
+              bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+
+        worker_threads = min(psutil.cpu_count(), 10)  # Adjust the number of threads as needed
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
+        loop = asyncio.get_event_loop()
+        tasks = []
+
+        for length in range(3):  # Adjust the length as needed
+            for combination in itertools.product(characters, repeat=length):
+                subdir = ''.join(combination)
+                target = urljoin(f"https://{domain}/{subdir}", "")  # Append trailing slash for subdirectory
+
+                if not is_ipv6(target):
+                    tasks.append(loop.run_in_executor(executor, check_subdir, target, found_pages, found_subdirs, pbar))
+
+        loop.run_until_complete(asyncio.gather(*tasks))
+        loop.close()
+
+
+def check_subdir(target, found_pages, found_subdirs, pbar):
+    try:
+        response = requests.get(target)
+        if response.status_code == 200:
+            found_pages.append(target)
+        elif response.status_code == 403 or response.status_code == 401:
+            found_subdirs.append(target)
+
+    except requests.exceptions.RequestException:
+        pass
+
+    pbar.update(1)
 
 
 def is_ipv6(url):
-    parsed_url= urlparse(url)
+    parsed_url = urlparse(url)
     if parsed_url.netloc.startswith('[') and parsed_url.netloc.endswith(']'):
         return True
     return False
 
 
 def main(target_domain, min_length, max_length, num_answers, enable_subdir, cpu_count, enable_multithread):
-    print_banner()
     print("Brute forcing in progress...")
     found_domains, found_subdirs, found_pages = brute_force_domains(target_domain, min_length, max_length, num_answers,
                                                                     enable_subdir, cpu_count, enable_multithread)
