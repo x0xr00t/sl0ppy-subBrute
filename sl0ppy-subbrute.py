@@ -2,13 +2,7 @@
 # Team   : Sl0ppyr00t
 # AKA    : x0xr00t
 # Author : p.hoogeveen
-# Tool   : Sl0ppy-DomainBrute
-
-#!/usr/bin/env python
-# Team   : Sl0ppyr00t
-# AKA    : x0xr00t
-# Author : p.hoogeveen
-# Tool   : Sl0ppy-DomainBrute
+# Tool   : Sl0ppy-SubBrute
 
 import argparse
 import asyncio
