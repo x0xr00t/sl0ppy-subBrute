@@ -1,4 +1,4 @@
-# sl0ppy-domainbrute
+# sl0ppy-SubBrute
 sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories. 
 
 # Usage
