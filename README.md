@@ -1,8 +1,8 @@
 # sl0ppy-domainbrute
-sl0ppy-SDSDBrute a Python3 based brute forcer for subdomains and subdirectories. 
+sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories. 
 
 # Usage
-`python sl0ppy-sdsdbrute.py -d example.com -min 1 -max 4 -num 2 -s -c 4 -m`
+`python sl0ppy-subbrute.py -d example.com -min 1 -max 4 -num 2 -s -c 4 -m`
 
 Run the script with the desired command-line arguments. Here are the available options:
 
