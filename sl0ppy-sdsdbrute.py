@@ -2,7 +2,7 @@
 # Team   : Sl0ppyr00t
 # AKA    : x0xr00t
 # Author : p.hoogeveen
-# Tool   : Sl0ppy-DomainBrute
+# Tool   : Sl0ppy-sdsdbrute
 
 import argparse
 import asyncio
