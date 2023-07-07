@@ -2,7 +2,13 @@
 # Team   : Sl0ppyr00t
 # AKA    : x0xr00t
 # Author : p.hoogeveen
-# Tool   : Sl0ppy-sdsdbrute
+# Tool   : Sl0ppy-DomainBrute
+
+#!/usr/bin/env python
+# Team   : Sl0ppyr00t
+# AKA    : x0xr00t
+# Author : p.hoogeveen
+# Tool   : Sl0ppy-DomainBrute
 
 import argparse
 import asyncio
@@ -15,6 +21,7 @@ import string
 import threading
 from colorama import Fore, Style, init
 from tqdm import tqdm
+from urllib.parse import urljoin
 
 def print_banner():
     init(autoreset=True)
@@ -32,12 +39,12 @@ def print_banner():
                         |__/      |__/       \______/                                                           
                      /$$          /$$$$$$$                        /$$                        
                     | $$         | $$__  $$                      | $$                        
-  /$$$$$$$ /$$   /$$| $$$$$$$    | $$  \ $$  /$$$$$$  /$$   /$$ /$$$$$$    /$$$$$$ 
+  /$$$$$$$ /$$   /$$| $$$$$$$    | $$  \ $$  /$$$$$$  /$$   /$$ /$$$$$$    /$$$$$$  
  /$$_____/| $$  | $$| $$__  $$   | $$$$$$$  /$$__  $$| $$  | $$|_  $$_/   /$$__  $$ 
 |  $$$$$$ | $$  | $$| $$  \ $$   | $$__  $$| $$  \__/| $$  | $$  | $$    | $$$$$$$$
- \____  $$| $$  | $$| $$  | $$   | $$  \ $$| $$      | $$  | $$  | $$ /$$| $$_____/
- /$$$$$$$/|  $$$$$$/| $$$$$$$/   | $$$$$$$/| $$      |  $$$$$$/  |  $$$$/|  $$$$$$$ 
-|_______/  \______/ |_______/    |_______/ |__/       \______/    \___/   \_______/  
+ \____  $$| $$  | $$| $$  | $$   | $$  \ $$| $$      | $$  | $$  | $$ /$$| $$_____/  
+ /$$$$$$$/|  $$$$$$/| $$$$$$$/   | $$$$$$$/| $$      |  $$$$$$/  |  $$$$/|  $$$$$$$     
+|_______/  \______/ |_______/    |_______/ |__/       \______/    \___/   \_______/ 
     """
 
     color_order = [Fore.RED, Fore.YELLOW]
@@ -71,7 +78,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
             subdir_thread.start()
 
         if enable_multithread:
-            worker_threads = min(cpu_count, psutil.cpu_count())
+            worker_threads = min(cpu_count, psutil.cpu_count()) * 0.7
             executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
             loop = asyncio.get_event_loop()
             tasks = []
@@ -79,7 +86,10 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
             for length in range(min_length, max_length + 1):
                 for combination in itertools.product(characters, repeat=length):
                     subdomain = ''.join(combination)
-                    target = subdomain + '.' + domain
+                    if enable_subdir:
+                        target = urljoin(f"https://{domain}/", subdomain)
+                    else:
+                        target = subdomain + '.' + domain
                     tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains))
 
             loop.run_until_complete(asyncio.gather(*tasks))
@@ -89,7 +99,10 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
             for length in range(min_length, max_length + 1):
                 for combination in itertools.product(characters, repeat=length):
                     subdomain = ''.join(combination)
-                    target = subdomain + '.' + domain
+                    if enable_subdir:
+                        target = urljoin(f"https://{domain}/", subdomain)
+                    else:
+                        target = subdomain + '.' + domain
                     resolve_domain(target, num_answers, pbar, found_domains)
 
         if enable_subdir:
@@ -100,6 +113,10 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
 
 def resolve_domain(target, num_answers, pbar, found_domains):
     try:
+        # Check if the target is an IPv6 address
+        if target.startswith("[") and target.endswith("]"):
+            target = target[1:-1]  # Remove the square brackets
+
         answers = 'A' * num_answers
         for answer in answers:
             # Perform testing here and update the progress bar description accordingly
@@ -132,11 +149,11 @@ def main(target_domain, min_length, max_length, num_answers, enable_subdir, cpu_
 
     print("\nFound subdomains:")
     for domain in found_domains:
-        print(Fore.GREEN + domain + Style.RESET_ALL)
+        print(domain)
 
     print("\nFound subdirectories:")
     for subdir in found_subdirs:
-        print(Fore.BLUE + subdir + Style.RESET_ALL)
+        print(subdir)
 
 
 if __name__ == "__main__":
