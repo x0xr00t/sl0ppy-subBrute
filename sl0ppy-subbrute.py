@@ -89,7 +89,8 @@ def brute_force_subdirs(domain, found_pages, found_subdirs):
 
         worker_threads = min(psutil.cpu_count(), 10)  # Adjust the number of threads as needed
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()  # Create a new event loop for the thread
+        asyncio.set_event_loop(loop)
         tasks = []
 
         for length in range(3):  # Adjust the length as needed
