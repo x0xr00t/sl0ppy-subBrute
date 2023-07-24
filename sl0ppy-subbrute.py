@@ -162,7 +162,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
                     else:
                         target = subdomain + '.' + domain
 
-                    if not enable_ipv6 or not is_ipv6(target):
+                    if (enable_ipv6 and is_ipv6(target)) or (not enable_ipv6 and not is_ipv6(target)):
                         tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains, found_pages))
 
             loop.run_until_complete(asyncio.gather(*tasks))
@@ -177,7 +177,7 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
                     else:
                         target = subdomain + '.' + domain
 
-                    if enable_ipv6 or not is_ipv6(target):
+                    if (enable_ipv6 and is_ipv6(target)) or (not enable_ipv6 and not is_ipv6(target)):
                         resolve_domain(target, num_answers, pbar, found_domains, found_pages)
 
         if enable_subdir:
