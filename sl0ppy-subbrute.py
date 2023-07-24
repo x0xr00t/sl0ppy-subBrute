@@ -1,11 +1,5 @@
-#!/usr/bin/env python
-# Team   : Sl0ppyr00t
-# AKA    : x0xr00t
-# Author : p.hoogeveen
-# Tool   : Sl0ppy-subBrute
-
-import argparse
 import asyncio
+import argparse
 import concurrent.futures
 import dns.exception
 import dns.resolver
@@ -55,7 +49,6 @@ def print_banner():
     print(colored_banner)
     print(Style.RESET_ALL)
 
-
 def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
     try:
         answers = 'A' * num_answers
@@ -63,10 +56,6 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
             # Perform testing here and update the progress bar description accordingly
             pbar.set_description(f'Testing: {target}')
             pbar.update(1)
-
-            response = requests.get(target)
-            if response.status_code == 200:
-                found_pages.append(target)
 
     except dns.resolver.NXDOMAIN:
         pass
@@ -80,14 +69,17 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
         if answer == 'A':
             found_domains.append(target)
 
-def brute_force_subdirs(domain, found_pages, found_subdirs):  # Updated function signature
+def brute_force_subdirs(domain, found_pages, subdir_format):  # Updated function signature
     characters = string.ascii_letters + string.digits + string.punctuation
     subdir = '/'
     target = construct_url(domain, subdir)  # Append subdir to domain
 
-    response = requests.get(target)
-    if response.status_code == 200:
-        found_pages.append(target)
+    try:
+        response = requests.get(target)
+        if response.status_code == 200:
+            found_pages.append(target)
+    except requests.exceptions.RequestException:
+        pass
 
     with tqdm(total=1, unit='combination', ncols=80,
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
@@ -97,16 +89,15 @@ def brute_force_subdirs(domain, found_pages, found_subdirs):  # Updated function
 
 def construct_url(domain, subdirectory=None):
     if subdirectory:
-        target = f"https://{domain}/{subdirectory}"
+        target = f"https://{domain}{subdirectory}"
     else:
         target = f"https://{domain}"
 
     return target
 
-def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, enable_multithread, num_threads):
+def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
     characters = string.ascii_letters + string.digits + string.punctuation
     found_domains = []
-    found_subdirs = []
     found_pages = []
 
     total_combinations = 0
@@ -117,7 +108,7 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
 
         if enable_subdir:
-            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(target_domain, found_pages, found_subdirs))
+            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(target_domain, found_pages, subdir_format))
             subdir_thread.start()
 
         # Determine the number of worker threads based on the available CPU cores
@@ -133,7 +124,11 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
         for length in range(subdomain_min_length, subdomain_max_length + 1):
             for combination in itertools.product(characters, repeat=length):
                 subdomain = ''.join(combination)
-                target = construct_url(target_domain, subdomain)
+
+                if not enable_subdir:
+                    target = construct_url(f"{subdomain}.{target_domain}")
+                else:
+                    target = construct_url(target_domain, subdir_format)
 
                 if target is None:
                     # Skip invalid URLs (likely IPv6)
@@ -150,22 +145,18 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
         if enable_subdir:
             subdir_thread.join()
 
-    return found_domains, found_subdirs, found_pages
+    return found_domains, found_pages
 
-def main(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, enable_multithread, num_threads):
+def main(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
     print_banner()
     print("Brute forcing in progress...")
 
-    found_domains, _, found_pages = brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers,
-                                                        enable_subdir, enable_multithread, num_threads)
+    found_domains, found_pages = brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers,
+                                                     enable_subdir, subdir_format, enable_multithread, num_threads)
 
     print("\nFound subdomains:")
     for domain in found_domains:
         print(domain)
-
-    print("\nFound subdirectories:")
-    for subdir in found_subdirs:
-        print(subdir)
 
     print("\nFound pages:")
     for page in found_pages:
@@ -178,10 +169,11 @@ if __name__ == "__main__":
     parser.add_argument('-max', dest='subdomain_max_length', type=int, default=3, help='Maximum subdomain length')
     parser.add_argument('-n', dest='num_answers', type=int, default=1, help='Number of answers to resolve')
     parser.add_argument('-subdir', dest='enable_subdir', action='store_true', help='Enable subdirectory brute-forcing')
+    parser.add_argument('-subdom', dest='subdir_format', default="brute-force", help='Subdirectory format when -subdir is enabled')
     parser.add_argument('-m', dest='enable_multithread', action='store_true', help='Enable multithreaded execution')
     parser.add_argument('-t', dest='num_threads', type=int, default=2, help='Number of worker threads for multithreading')
 
     args = parser.parse_args()
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
-         args.enable_subdir, args.enable_multithread, args.num_threads)
+         args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
