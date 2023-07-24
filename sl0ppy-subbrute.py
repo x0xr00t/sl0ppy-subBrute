@@ -72,7 +72,7 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
 def brute_force_subdirs(domain, found_pages, subdir_format):  # Updated function signature
     characters = string.ascii_letters + string.digits + string.punctuation
     subdir = '/'
-    target = construct_url(domain, subdir)  # Append subdir to domain
+    target = construct_url(domain, subdir_format)  # Append subdir_format to domain
 
     try:
         response = requests.get(target)
@@ -83,6 +83,10 @@ def brute_force_subdirs(domain, found_pages, subdir_format):  # Updated function
 
     with tqdm(total=1, unit='combination', ncols=80,
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+
+        if subdir_format:
+            chars_msg = f"Brute forcing in progress...\nTesting: https://{domain}/"
+            print(chars_msg)
 
         pbar.set_description(f'Testing: {target}')
         pbar.update(1)
@@ -128,7 +132,7 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
                 if not enable_subdir:
                     target = construct_url(f"{subdomain}.{target_domain}")
                 else:
-                    target = construct_url(target_domain, subdir_format)
+                    target = construct_url(target_domain)
 
                 if target is None:
                     # Skip invalid URLs (likely IPv6)
@@ -169,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('-max', dest='subdomain_max_length', type=int, default=3, help='Maximum subdomain length')
     parser.add_argument('-n', dest='num_answers', type=int, default=1, help='Number of answers to resolve')
     parser.add_argument('-subdir', dest='enable_subdir', action='store_true', help='Enable subdirectory brute-forcing')
-    parser.add_argument('-subdom', dest='subdir_format', default="brute-force", help='Subdirectory format when -subdir is enabled')
+    parser.add_argument('-subdom', dest='subdir_format', default="", help='Subdirectory format when -subdir is enabled')
     parser.add_argument('-m', dest='enable_multithread', action='store_true', help='Enable multithreaded execution')
     parser.add_argument('-t', dest='num_threads', type=int, default=2, help='Number of worker threads for multithreading')
 
