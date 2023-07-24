@@ -143,42 +143,30 @@ def brute_force_domains(domain, min_length, max_length, num_answers, enable_subd
         if enable_subdir:
             subdir_thread = threading.Thread(target=brute_force_subdirs, args=(domain, found_pages, found_subdirs))
             subdir_thread.start()
-        if enable_multithread:
-            # Determine the number of worker threads based on the available CPU cores
-            cpu_cores = psutil.cpu_count(logical=False)  # Get the number of physical cores
-            max_threads = max(cpu_cores - 1, 1)  # Limit the number of threads to physical cores - 1 or at least 1
-            worker_threads = min(cpu_cores, max_threads, num_threads)
 
-            executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            tasks = []
+        # Determine the number of worker threads based on the available CPU cores
+        cpu_cores = psutil.cpu_count(logical=False)  # Get the number of physical cores
+        max_threads = max(cpu_cores - 1, 1)  # Limit the number of threads to physical cores - 1 or at least 1
+        worker_threads = min(cpu_cores, max_threads, num_threads)
 
-            for length in range(min_length, max_length + 1):
-                for combination in itertools.product(characters, repeat=length):
-                    subdomain = ''.join(combination)
-                    if enable_subdir:
-                        target = urljoin(f"https://{domain}/", subdomain)
-                    else:
-                        target = subdomain + '.' + domain
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        tasks = []
 
-                    if (enable_ipv6 and is_ipv6(target)) or (not enable_ipv6 and not is_ipv6(target)):
-                        tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains, found_pages))
+        for length in range(min_length, max_length + 1):
+            for combination in itertools.product(characters, repeat=length):
+                subdomain = ''.join(combination)
+                if enable_subdir:
+                    target = urljoin(f"https://{domain}/", subdomain)
+                else:
+                    target = subdomain + '.' + domain
 
-            loop.run_until_complete(asyncio.gather(*tasks))
-            loop.close()
+                if enable_ipv6 or not is_ipv6(target):
+                    tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains, found_pages))
 
-        else:
-            for length in range(min_length, max_length + 1):
-                for combination in itertools.product(characters, repeat=length):
-                    subdomain = ''.join(combination)
-                    if enable_subdir:
-                        target = urljoin(f"https://{domain}/", subdomain)
-                    else:
-                        target = subdomain + '.' + domain
-
-                    if (enable_ipv6 and is_ipv6(target)) or (not enable_ipv6 and not is_ipv6(target)):
-                        resolve_domain(target, num_answers, pbar, found_domains, found_pages)
+        loop.run_until_complete(asyncio.gather(*tasks))
+        loop.close()
 
         if enable_subdir:
             subdir_thread.join()
@@ -211,7 +199,7 @@ if __name__ == "__main__":
     parser.add_argument('-n', dest='num_answers', type=int, default=1, help='Number of answers to resolve')
     parser.add_argument('-s', dest='enable_subdir', action='store_true', help='Enable subdirectory brute-forcing')
     parser.add_argument('-m', dest='enable_multithread', action='store_true', help='Enable multithreaded execution')
-    parser.add_argument('-t', dest='num_threads', type=int, default=2, help='Number of worker threads for multithreading')
+    parser.add_argument('-t', dest='num_threads', type=int, default=3, help='Number of worker threads for multithreading')
     parser.add_argument('-ipv6', dest='enable_ipv6', action='store_true', help='Enable brute-forcing of IPv6 domains')
 
     args = parser.parse_args()
