@@ -7,17 +7,24 @@
 import argparse
 import asyncio
 import concurrent.futures
-import dns.exception
 import dns.resolver
 import itertools
 import os
 import psutil
-import urllib3
 import string
 import threading
-from urllib.parse import urlparse
+import urllib3
 from colorama import Fore, Style, init
 from tqdm import tqdm
+
+def has_gpu():
+    try:
+        sensors = psutil.sensors_temperatures()
+        if 'nvidia' in sensors:
+            return True
+    except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.TimeoutExpired):
+        pass
+    return False
 
 def print_banner():
     init(autoreset=True)
@@ -56,11 +63,6 @@ def print_banner():
     print(colored_banner)
     print(Style.RESET_ALL)
 
-def validate_subdomain(target):
-    http = urllib3.PoolManager()
-    response = http.request('HEAD', target)
-    return response.status == 200
-
 def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
     try:
         answers = 'A' * num_answers
@@ -68,6 +70,11 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
             # Perform testing here and update the progress bar description accordingly
             pbar.set_description(f'Testing: {target}')
             pbar.update(1)
+
+            answers = dns.resolver.resolve(target, 'A')
+            for answer in answers:
+                found_domains.append(target)
+                break
 
     except dns.resolver.NXDOMAIN:
         pass
@@ -77,24 +84,38 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
         pass
     except dns.exception.Timeout:
         pass
-    else:
-        if answer == 'A':
-            found_domains.add(target)
 
 def brute_force_subdirs(domain, subdir_format, found_pages):
     characters = string.ascii_letters + string.digits + string.punctuation
+    subdir = '/'
+    target = construct_url(domain, subdir)  # Append subdir to domain
 
-    with tqdm(total=len(characters), unit='combination', ncols=80,
+    try:
+        response = http.request('GET', target)
+        if response.status == 200:
+            found_pages.append(target)
+    except urllib3.exceptions.RequestException:
+        pass
+
+    with tqdm(total=len(characters), unit='character', ncols=80,
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
-        for char in characters:
-            target = construct_url(domain, f"{subdir_format}{char}")
-            if target not in found_pages and validate_subdomain(target):
-                print(target)
-                found_pages.add(target)
+
+        for character in characters:
+            subdir = f'/{subdir_format}/{character}'
+            target = construct_url(domain, subdir)
+            try:
+                response = http.request('GET', target)
+                if response.status == 200:
+                    found_pages.append(target)
+            except urllib3.exceptions.RequestException:
+                pass
+
+            pbar.set_description(f'Testing: {target}')
+            pbar.update(1)
 
 def construct_url(domain, subdirectory=None):
     if subdirectory:
-        target = f"https://{domain}/{subdirectory}"
+        target = f"https://{domain}{subdirectory}"
     else:
         target = f"https://{domain}"
 
@@ -102,19 +123,29 @@ def construct_url(domain, subdirectory=None):
 
 def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
     characters = string.ascii_letters + string.digits + string.punctuation
-    found_domains = set()
-    found_pages = set()
+    found_domains = []
+    found_pages = []
 
     total_combinations = 0
     for length in range(subdomain_min_length, subdomain_max_length + 1):
         total_combinations += len(characters) ** length
 
-    if enable_multithread:
-        cpu_cores = psutil.cpu_count(logical=False)
-        max_threads = max(cpu_cores - 1, 1)
-        worker_threads = min(cpu_cores, max_threads, num_threads)
+    with tqdm(total=total_combinations, unit='combination', ncols=80,
+              bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads) as executor:
+        if enable_subdir:
+            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(target_domain, subdir_format, found_pages))
+            subdir_thread.start()
+
+        if enable_multithread:
+            if has_gpu():
+                cpu_cores = psutil.cpu_count(logical=False)
+                max_threads = max(cpu_cores - 1, 1)
+                worker_threads = min(cpu_cores, max_threads, num_threads)
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
+            else:
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             tasks = []
@@ -125,48 +156,51 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
                     target = construct_url(f"{subdomain}.{target_domain}")
 
                     if target is None:
+                        # Skip invalid URLs (likely IPv6)
                         continue
 
                     try:
-                        tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, tqdm(total=total_combinations, unit='combination', ncols=80,
-                                  bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'), found_domains, found_pages))
+                        tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains, found_pages))
                     except ValueError:
                         pass
 
             loop.run_until_complete(asyncio.gather(*tasks))
             loop.close()
 
-    else:
-        with tqdm(total=total_combinations, unit='combination', ncols=80,
-                  bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+        else:
             for length in range(subdomain_min_length, subdomain_max_length + 1):
                 for combination in itertools.product(characters, repeat=length):
                     subdomain = ''.join(combination)
                     target = construct_url(f"{subdomain}.{target_domain}")
 
                     if target is None:
+                        # Skip invalid URLs (likely IPv6)
                         continue
 
-                    resolve_domain(target, num_answers, pbar, found_domains, found_pages)
+                    try:
+                        resolve_domain(target, num_answers, pbar, found_domains, found_pages)
+                    except ValueError:
+                        pass
 
-    if enable_subdir:
-        print("\n# Found subdirectories:")
-        brute_force_subdirs(target_domain, subdir_format, found_pages)
+        if enable_subdir:
+            subdir_thread.join()
 
-    print("\n# Found subdomains:")
-    for domain in found_domains:
-        print(domain)
-
-    print("\n# Found pages:")
-    for page in found_pages:
-        print(page)
+    return found_domains, found_pages
 
 def main(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
     print_banner()
     print("Brute forcing in progress...")
 
-    brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers,
-                        enable_subdir, subdir_format, enable_multithread, num_threads)
+    found_domains, found_pages = brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers,
+                                                     enable_subdir, subdir_format, enable_multithread, num_threads)
+
+    print("\n# Found subdirs:")
+    for page in found_pages:
+        print(f"{Fore.GREEN}{{v}} {page}{Style.RESET_ALL}")
+
+    print("\n# Found subdomains:")
+    for domain in found_domains:
+        print(f"{Fore.GREEN}{{v}} {domain}{Style.RESET_ALL}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Domain brute-forcing script')
@@ -180,6 +214,8 @@ if __name__ == "__main__":
     parser.add_argument('-t', dest='num_threads', type=int, default=2, help='Number of worker threads for multithreading')
 
     args = parser.parse_args()
+
+    http = urllib3.PoolManager()
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
          args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
