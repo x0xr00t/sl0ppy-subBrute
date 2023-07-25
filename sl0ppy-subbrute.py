@@ -63,7 +63,7 @@ def print_banner():
     print(colored_banner)
     print(Style.RESET_ALL)
 
-def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
+def resolve_domain(target, num_answers, pbar, found_domains):
     try:
         answers = 'A' * num_answers
         for answer in answers:
@@ -85,7 +85,7 @@ def resolve_domain(target, num_answers, pbar, found_domains, found_pages):
     except dns.exception.Timeout:
         pass
 
-def brute_force_subdirs(domain, subdir_format, found_pages):
+def brute_force_subdirs(domain, subdir_format):
     characters = string.ascii_letters + string.digits + string.punctuation
     subdir = '/'
     target = construct_url(domain, subdir)  # Append subdir to domain
@@ -93,7 +93,7 @@ def brute_force_subdirs(domain, subdir_format, found_pages):
     try:
         response = http.request('GET', target)
         if response.status == 200:
-            found_pages.append(target)
+            yield target
     except urllib3.exceptions.RequestException:
         pass
 
@@ -106,7 +106,7 @@ def brute_force_subdirs(domain, subdir_format, found_pages):
             try:
                 response = http.request('GET', target)
                 if response.status == 200:
-                    found_pages.append(target)
+                    yield target
             except urllib3.exceptions.RequestException:
                 pass
 
@@ -121,20 +121,24 @@ def construct_url(domain, subdirectory=None):
 
     return target
 
-def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
-    characters = string.ascii_letters + string.digits + string.punctuation
-    found_domains = []
-    found_pages = []
+def generate_subdomains(target_domain, min_length, max_length):
+    characters = string.ascii_letters + string.digits
+    for length in range(min_length, max_length + 1):
+        for combination in itertools.product(characters, repeat=length):
+            subdomain = ''.join(combination)
+            yield f"{subdomain}.{target_domain}"
 
-    total_combinations = 0
-    for length in range(subdomain_min_length, subdomain_max_length + 1):
-        total_combinations += len(characters) ** length
+def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
+    found_domains = set()
+    found_pages = set()
+
+    total_combinations = sum(len(string.ascii_letters + string.digits) ** length for length in range(subdomain_min_length, subdomain_max_length + 1))
 
     with tqdm(total=total_combinations, unit='combination', ncols=80,
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
 
         if enable_subdir:
-            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(target_domain, subdir_format, found_pages))
+            subdir_thread = threading.Thread(target=brute_force_subdirs, args=(target_domain, subdir_format))
             subdir_thread.start()
 
         if enable_multithread:
@@ -150,37 +154,27 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
             asyncio.set_event_loop(loop)
             tasks = []
 
-            for length in range(subdomain_min_length, subdomain_max_length + 1):
-                for combination in itertools.product(characters, repeat=length):
-                    subdomain = ''.join(combination)
-                    target = construct_url(f"{subdomain}.{target_domain}")
+            for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
+                target = construct_url(subdomain)
 
-                    if target is None:
-                        # Skip invalid URLs (likely IPv6)
-                        continue
+                if target is None:
+                    # Skip invalid URLs (likely IPv6)
+                    continue
 
-                    try:
-                        tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains, found_pages))
-                    except ValueError:
-                        pass
+                tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains))
 
             loop.run_until_complete(asyncio.gather(*tasks))
             loop.close()
 
         else:
-            for length in range(subdomain_min_length, subdomain_max_length + 1):
-                for combination in itertools.product(characters, repeat=length):
-                    subdomain = ''.join(combination)
-                    target = construct_url(f"{subdomain}.{target_domain}")
+            for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
+                target = construct_url(subdomain)
 
-                    if target is None:
-                        # Skip invalid URLs (likely IPv6)
-                        continue
+                if target is None:
+                    # Skip invalid URLs (likely IPv6)
+                    continue
 
-                    try:
-                        resolve_domain(target, num_answers, pbar, found_domains, found_pages)
-                    except ValueError:
-                        pass
+                resolve_domain(target, num_answers, pbar, found_domains)
 
         if enable_subdir:
             subdir_thread.join()
