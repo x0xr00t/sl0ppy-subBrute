@@ -145,26 +145,31 @@ def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_lengt
             if has_gpu():
                 cpu_cores = psutil.cpu_count(logical=False)
                 max_threads = max(cpu_cores - 1, 1)
-                worker_threads = min(cpu_cores, max_threads, num_threads)
-                executor = concurrent.futures.ThreadPoolExecutor(max_workers=worker_threads)
+                cpu_threads = min(cpu_cores, max_threads, num_threads)
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=cpu_threads)
             else:
+                cpu_threads = num_threads
                 executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            tasks = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_threads) as executor:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                tasks = []
 
-            for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
-                target = construct_url(subdomain)
+                for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
+                    target = construct_url(subdomain)
 
-                if target is None:
-                    # Skip invalid URLs (likely IPv6)
-                    continue
+                    if target is None:
+                        # Skip invalid URLs (likely IPv6)
+                        continue
 
-                tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains))
+                    try:
+                        tasks.append(loop.run_in_executor(executor, resolve_domain, target, num_answers, pbar, found_domains))
+                    except ValueError:
+                        pass
 
-            loop.run_until_complete(asyncio.gather(*tasks))
-            loop.close()
+                loop.run_until_complete(asyncio.gather(*tasks))
+                loop.close()
 
         else:
             for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
