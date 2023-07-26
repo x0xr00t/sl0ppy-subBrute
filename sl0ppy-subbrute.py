@@ -83,6 +83,7 @@ def print_banner():
         line_num += 1
 
     print(colored_banner)
+    print("{I} Cause we brute-force all your subdomains & subdirs in a sl0ppy manner ;)")
     print(Style.RESET_ALL)
 
 # Global DNS cache to store resolved domains
@@ -218,7 +219,7 @@ def check_memory_usage():
 
 def main(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
     print_banner()
-    print("Brute forcing in progress...")
+    print(f"{Fore.YELLOW}Brute forcing in progress...")
 
     found_domains, found_pages = asyncio.run(brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers,
                                                                  enable_subdir, subdir_format, enable_multithread, num_threads))
@@ -251,3 +252,4 @@ if __name__ == "__main__":
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
          args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
+
