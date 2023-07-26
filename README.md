@@ -12,8 +12,6 @@ usage: sl0ppy-SubBrute.py [-h] -d TARGET_DOMAIN [-min SUBDOMAIN_MIN_LENGTH]
                        [-max SUBDOMAIN_MAX_LENGTH] [-n NUM_ANSWERS]
                        [-subdir] [-subdom SUBDIR_FORMAT] [-m] [-t NUM_THREADS]
 
-Domain brute-forcing script
-
 optional arguments:
   -h, --help            show this help message and exit
   -d TARGET_DOMAIN, --target_domain TARGET_DOMAIN
