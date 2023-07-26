@@ -3,7 +3,6 @@
 # AKA    : x0xr00t
 # Author : p.hoogeveen
 # Tool   : Sl0ppy-subBrute
-
 import argparse
 import asyncio
 import concurrent.futures
@@ -19,6 +18,7 @@ from colorama import Fore, Style, init
 from tqdm import tqdm
 import os
 import time
+import random
 
 # Global variable to store the current memory usage percentage
 current_mem_usage = 0
@@ -34,8 +34,8 @@ def monitor_memory():
         # Check memory usage every 5 seconds
         get_mem_usage()
         if current_mem_usage > 90:
-            # If memory usage is above 90%, sleep for 5 seconds and check again
-            time.sleep(5)
+            # If memory usage is above 90%, sleep for 2 seconds and check again
+            time.sleep(2)
         else:
             # If memory usage is below 90%, continue with brute-forcing
             time.sleep(1)
@@ -99,14 +99,10 @@ async def resolve_domain(target, num_answers, pbar, found_domains):
                 found_domains.add(target)
                 return  # Add a return statement here to fix the issue
 
-    except dns.resolver.NXDOMAIN:
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers, dns.exception.Timeout):
         pass
-    except dns.resolver.NoAnswer:
-        pass
-    except dns.resolver.NoNameservers:
-        pass
-    except dns.exception.Timeout:
-        pass
+    except Exception as e:
+        print(f"Unexpected error occurred while resolving {target}: {e}")
 
 async def brute_force_subdirs(target_domain, subdir_format, characters, pbar, found_pages):
     subdir = '/'
