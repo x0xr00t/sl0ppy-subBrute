@@ -97,7 +97,7 @@ async def resolve_domain(target, num_answers, pbar, found_domains):
             answers = dns.resolver.resolve(target, 'A')
             for answer in answers:
                 found_domains.add(target)
-                break
+                return  # Add a return statement here to fix the issue
 
     except dns.resolver.NXDOMAIN:
         pass
@@ -156,11 +156,41 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
         if enable_subdir:
             characters = string.ascii_letters + string.digits + string.punctuation
             subdir_coroutine = brute_force_subdirs(target_domain, subdir_format, characters, pbar, found_pages)
-            await subdir_coroutine
+            subdir_task = asyncio.create_task(subdir_coroutine)
+
+        memory_limit = check_memory_usage()
+
+        if enable_multithread:
+            if has_gpu():
+                cpu_cores = psutil.cpu_count(logical=False)
+                max_threads = max(cpu_cores - 1, 1)
+                cpu_threads = min(cpu_cores, max_threads, num_threads)
+                num_threads = cpu_threads
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=cpu_threads)
+            else:
+                cpu_threads = num_threads
+                num_threads = 1
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=cpu_threads)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                tasks = []
+
+                for length in range(subdomain_min_length, subdomain_max_length + 1):
+                    for combination in itertools.product(string.ascii_letters + string.digits, repeat=length):
+                        subdomain = f"{''.join(combination)}.{target_domain}"
+                        tasks.append(loop.run_in_executor(executor, resolve_domain, subdomain, num_answers, pbar, found_domains))
+
+                await asyncio.gather(*tasks)
+                loop.close()
         else:
             async for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
                 target = construct_url(target_domain, subdomain)
                 await resolve_domain(target, num_answers, pbar, found_domains)
+
+        if enable_subdir:
+            await subdir_task
 
     return found_domains, found_pages
 
@@ -213,4 +243,3 @@ if __name__ == "__main__":
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
          args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
-
