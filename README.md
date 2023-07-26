@@ -24,8 +24,8 @@ optional arguments:
                         Number of answers to resolve
   -subdir, --enable_subdir
                         Enable subdirectory brute-forcing
-  -subdom SUBDIR_FORMAT, --subdir_format SUBDIR_FORMAT
-                        Subdirectory format when -subdir is enabled
+  -subdom SUBDIR_FORMAT, --subdom_format SUBDOM_FORMAT
+                        Subdomain format when -subdom is enabled
   -m, --enable_multithread
                         Enable multithreaded execution
   -t NUM_THREADS, --num_threads NUM_THREADS
