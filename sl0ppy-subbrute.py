@@ -125,7 +125,7 @@ async def brute_force_subdirs(session, target_domain, subdir_format, characters,
         async with session.get(target) as response:
             if response.status == 200:
                 found_pages.add(target)
-                pbar.set_description(f'Testing: {subdir_format}')
+                pbar.set_description(f'Testing: http://{target_domain}/')
                 pbar.update(1)
     except aiohttp.ClientError:
         pass
@@ -137,7 +137,8 @@ async def brute_force_subdirs(session, target_domain, subdir_format, characters,
             async with session.get(target) as response:
                 if response.status == 200:
                     found_pages.add(target)
-                    pbar.set_description(f'Testing: {subdir_format}')
+                    subdir_url = construct_url(target_domain, f"{subdir_format}{character}")
+                    pbar.set_description(f'Testing: http://{subdir_url}')
                     pbar.update(1)
         except aiohttp.ClientError:
             pass
@@ -238,8 +239,10 @@ if __name__ == "__main__":
     parser.add_argument('-min', dest='subdomain_min_length', type=int, default=1, help='Minimum subdomain length')
     parser.add_argument('-max', dest='subdomain_max_length', type=int, default=3, help='Maximum subdomain length')
     parser.add_argument('-n', dest='num_answers', type=int, default=1, help='Number of answers to resolve')
-    parser.add_argument('-subdir', dest='enable_subdir', action='store_true', help='Enable subdirectory brute-forcing')
-    parser.add_argument('-subdom', dest='subdir_format', default="brute-force", help='Subdirectory format when -subdir is enabled')
+    parser.add_argument('--subdir', dest='enable_subdir', action='store_true', help='Enable subdirectory brute-forcing')
+    parser.add_argument('--subdir-format', dest='subdir_format', default="brute-force", help='Subdirectory format when -subdir is enabled')
+    parser.add_argument('--subdom', dest='enable_subdom', action='store_true', help='Enable subdomain brute-forcing')
+    parser.add_argument('--subdom-format', dest='subdom_format', default="brute-force", help='Subdomain format when -subdom is enabled')
     parser.add_argument('-m', dest='enable_multithread', action='store_true', help='Enable multithreaded execution')
     parser.add_argument('-t', dest='num_threads', type=int, default=2, help='Number of worker threads for multithreading')
 
@@ -252,4 +255,5 @@ if __name__ == "__main__":
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
          args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
+
 
