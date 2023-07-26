@@ -116,7 +116,7 @@ async def brute_force_subdirs(target_domain, subdir_format, characters, pbar, fo
         response = http.request('GET', target)
         if response.status == 200:
             found_pages.add(target)
-            pbar.set_description(f'Testing: {target}')
+            pbar.set_description(f'Testing: {subdir_format}')
             pbar.update(1)
     except urllib3.exceptions.RequestException:
         pass
@@ -128,7 +128,7 @@ async def brute_force_subdirs(target_domain, subdir_format, characters, pbar, fo
             response = http.request('GET', target)
             if response.status == 200:
                 found_pages.add(target)
-                pbar.set_description(f'Testing: {target}')
+                pbar.set_description(f'Testing: {subdir_format}')
                 pbar.update(1)
         except urllib3.exceptions.RequestException:
             pass
@@ -196,9 +196,9 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
 
 def construct_url(domain, subdirectory=None):
     if subdirectory:
-        target = f"https://{domain}{subdirectory}"
+        target = f"{subdirectory}"
     else:
-        target = f"https://{domain}"
+        target = f"{domain}"
 
     return target
 
@@ -243,3 +243,4 @@ if __name__ == "__main__":
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
          args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
+
