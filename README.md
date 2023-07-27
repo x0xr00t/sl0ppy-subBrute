@@ -1,6 +1,24 @@
 # sl0ppy-SubBrute
 sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories. 
 
+# GPU Support
+* `AMD`
+* `NVIDIA`
+
+# gpu check
+* `It has a automated gpu check function`
+ 
+# legacy cpu check
+* `A auto checks for legacy cpu up to 4core are seen as legacy, newer with 6 or more cores would be considered new.`
+
+# optimizations
+* `aiohttp`
+* `asyncio`
+* `Memory optimization`
+  
+# Lightweight 
+* optimized it so its lightweight, can run whilst other processes run, like youtube in backgrond without exhausting the memory.
+
 # Usage
 `python sl0ppy-SubBrute.p -d example.com -min 1 -max 4 -num 2 -s -c 4 -m`
 
