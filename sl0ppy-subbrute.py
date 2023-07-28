@@ -89,7 +89,7 @@ def print_banner():
 # Global DNS cache to store resolved domains
 dns_cache = {}
 
-async def resolve_domain(session, target, num_answers, pbar, found_domains):
+async def resolve_domain(session, target, num_answers, pbar, found_domains, sem, tested_urls):
     if target in dns_cache:
         answers = dns_cache[target]
     else:
@@ -97,8 +97,9 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains):
             answers = 'A' * num_answers
             for answer in answers:
                 # Perform testing here and update the progress bar description accordingly
-                pbar.set_description(f'Testing: {target}')
-                pbar.update(1)
+                async with sem:
+                    pbar.set_description(f'Testing: {target}')
+                    pbar.update(1)
 
                 answers = dns.resolver.resolve(target, 'A')
                 break
@@ -116,8 +117,9 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains):
     if answers is not None:
         for answer in answers:
             found_domains.add(target)
+            tested_urls.add(target)  # Add the tested URL to the set to avoid duplicates in the progress bar
 
-async def brute_force_subdirs(session, target_domain, subdir_format, characters, pbar, found_pages):
+async def brute_force_subdirs(session, target_domain, subdir_format, characters, pbar, found_pages, sem, tested_urls):
     subdir = '/'
     target = construct_url(target_domain, subdir)  # Append subdir to domain
 
@@ -125,21 +127,24 @@ async def brute_force_subdirs(session, target_domain, subdir_format, characters,
         async with session.get(target) as response:
             if response.status == 200:
                 found_pages.add(target)
-                pbar.set_description(f'Testing: http://{target_domain}/')
+                subdir_url = construct_url(target_domain, subdir_format)
+                pbar.set_description(f'Testing: {subdir_url}')
                 pbar.update(1)
+                tested_urls.add(subdir_url)  # Add the tested URL to the set to avoid duplicates in the progress bar
     except aiohttp.ClientError:
         pass
 
     async for character in generate_subdirs(target_domain, subdir_format, characters):
-        subdir = f'/{subdir_format}/{character}'
+        subdir = f'{subdir_format}/{character}'
         target = construct_url(target_domain, subdir)
         try:
             async with session.get(target) as response:
                 if response.status == 200:
                     found_pages.add(target)
                     subdir_url = construct_url(target_domain, f"{subdir_format}{character}")
-                    pbar.set_description(f'Testing: http://{subdir_url}')
+                    pbar.set_description(f'Testing: {subdir_url}')
                     pbar.update(1)
+                    tested_urls.add(subdir_url)  # Add the tested URL to the set to avoid duplicates in the progress bar
         except aiohttp.ClientError:
             pass
 
@@ -154,19 +159,22 @@ async def generate_subdomains(target_domain, min_length, max_length):
             subdomain = ''.join(combination)
             yield f"{subdomain}.{target_domain}"
 
-async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
+async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_subdom, subdom_format, enable_multithread, num_threads):
     found_domains = set()
     found_pages = set()
+    tested_urls = set()  # A set to keep track of tested URLs and avoid duplicates in the progress bar
 
     total_combinations = sum(len(string.ascii_letters + string.digits) ** length for length in range(subdomain_min_length, subdomain_max_length + 1))
 
     with tqdm(total=total_combinations, unit='combination', ncols=80,
               bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
 
+        sem = asyncio.Semaphore(num_threads)
+
         if enable_subdir:
             characters = string.ascii_letters + string.digits + string.punctuation
             async with aiohttp.ClientSession() as session:
-                subdir_coroutine = brute_force_subdirs(session, target_domain, subdir_format, characters, pbar, found_pages)
+                subdir_coroutine = brute_force_subdirs(session, target_domain, subdir_format, characters, pbar, found_pages, sem, tested_urls)
                 subdir_task = asyncio.create_task(subdir_coroutine)
 
         memory_limit = check_memory_usage()
@@ -191,15 +199,25 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
                 for length in range(subdomain_min_length, subdomain_max_length + 1):
                     for combination in itertools.product(string.ascii_letters + string.digits, repeat=length):
                         subdomain = f"{''.join(combination)}.{target_domain}"
-                        tasks.append(loop.run_in_executor(executor, resolve_domain, session, subdomain, num_answers, pbar, found_domains))
+                        if not enable_subdom:
+                            subdomain_url = f"http://{subdomain}"
+                        else:
+                            subdomain_url = subdomain
+                        if subdomain_url not in tested_urls:  # Skip if already tested to avoid duplicates
+                            tasks.append(loop.run_in_executor(executor, resolve_domain, session, subdomain_url, num_answers, pbar, found_domains, sem, tested_urls))
 
                 await asyncio.gather(*tasks)
                 loop.close()
         else:
             async with aiohttp.ClientSession() as session:
                 async for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
-                    target = construct_url(target_domain, subdomain)
-                    await resolve_domain(session, target, num_answers, pbar, found_domains)
+                    if not enable_subdom:
+                        subdomain_url = f"http://{subdomain}"
+                    else:
+                        subdomain_url = subdomain
+                    if subdomain_url not in tested_urls:  # Skip if already tested to avoid duplicates
+                        target = construct_url(target_domain, subdomain_url)
+                        await resolve_domain(session, target, num_answers, pbar, found_domains, sem, tested_urls)
 
         if enable_subdir:
             await subdir_task
@@ -218,12 +236,12 @@ def check_memory_usage():
     memory_limit = psutil.virtual_memory().available * 0.75  # Set the memory limit to 75% of available memory
     return memory_limit
 
-def main(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_multithread, num_threads):
+def main(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, subdir_format, enable_subdom, subdom_format, enable_multithread, num_threads):
     print_banner()
     print(f"{Fore.YELLOW}Brute forcing in progress...")
 
     found_domains, found_pages = asyncio.run(brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers,
-                                                                 enable_subdir, subdir_format, enable_multithread, num_threads))
+                                                                 enable_subdir, subdir_format, enable_subdom, subdom_format, enable_multithread, num_threads))
 
     print("\n# Found subdirs:")
     for page in found_pages:
@@ -254,4 +272,5 @@ if __name__ == "__main__":
     memory_thread.start()
 
     main(args.target_domain, args.subdomain_min_length, args.subdomain_max_length, args.num_answers,
-         args.enable_subdir, args.subdir_format, args.enable_multithread, args.num_threads)
+         args.enable_subdir, args.subdir_format, args.enable_subdom, args.subdom_format, args.enable_multithread, args.num_threads)
+
