@@ -16,7 +16,6 @@ import threading
 from urllib.parse import urlparse
 from colorama import Fore, Style, init
 from tqdm import tqdm
-import os
 import time
 
 # Global variable to store the current memory usage percentage
