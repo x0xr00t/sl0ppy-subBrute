@@ -4,19 +4,22 @@
 # Author : p.hoogeveen
 # Tool   : Sl0ppy-subBrute
 
-import argparse
-import asyncio
-import aiohttp
-import dns.resolver
-import itertools
-import psutil
-import string
-import threading
-from urllib.parse import urlparse
-from colorama import Fore, Style, init
-from tqdm import tqdm
+# imports
 import os
 import time
+import psutil
+import string
+import asyncio
+import aiohttp
+import argparse
+import itertools
+import threading
+import dns.resolver
+
+# from import
+from tqdm import tqdm
+from urllib.parse import urlparse
+from colorama import Fore, Style, init
 
 # Global variable to store the current memory usage percentage
 current_mem_usage = 0
