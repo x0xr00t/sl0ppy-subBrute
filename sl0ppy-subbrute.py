@@ -9,7 +9,6 @@ import asyncio
 import aiohttp
 import dns.resolver
 import itertools
-import os
 import psutil
 import string
 import threading
