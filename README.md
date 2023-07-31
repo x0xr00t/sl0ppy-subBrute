@@ -42,25 +42,14 @@ usage: sl0ppy-SubBrute.py [-h] -d TARGET_DOMAIN [-min SUBDOMAIN_MIN_LENGTH] [-ma
 sl0ppy-SubBrute.p
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -d TARGET_DOMAIN, --target-domain TARGET_DOMAIN
-                        Target domain
-  -min SUBDOMAIN_MIN_LENGTH
-                        Minimum subdomain length
-  -max SUBDOMAIN_MAX_LENGTH
-                        Maximum subdomain length
-  -n NUM_ANSWERS, --num-answers NUM_ANSWERS
-                        Number of answers to resolve
-  --subdir              Enable subdirectory brute-forcing
-  --subdir-format SUBDIR_FORMAT
-                        Subdirectory format when -subdir is enabled
-  --subdom              Enable subdomain brute-forcing
-  --subdom-format SUBDOM_FORMAT
-                        Subdomain format when -subdom is enabled
-  -m, --enable-multithread
-                        Enable multithreaded execution
-  -t NUM_THREADS, --num-threads NUM_THREADS
-                        Number of worker threads for multithreading
+-d, --target-domain  : Target domain to brute-force (required)
+-min, --subdomain-min-length : Minimum subdomain length (default: 1)
+-max, --subdomain-max-length : Maximum subdomain length (default: 3)
+-n, --num-answers : Number of answers to resolve (default: 1)
+--subdir : Enable subdirectory brute-forcing (default: False)
+--subdom : Enable subdomain brute-forcing (default: False)
+-m, --enable-multithread : Enable multithreaded execution (default: False)
+-t, --num-threads : Number of worker threads for multithreading (default: 2)
 ```
 
 For example, to run the script with the target domain example.com and enable multithreading with 4 threads, you can use the following command:
