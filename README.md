@@ -39,7 +39,7 @@ Run the script with the desired options. Here are the available command-line opt
 ```
 usage: sl0ppy-SubBrute.py [-h] -d TARGET_DOMAIN [-min SUBDOMAIN_MIN_LENGTH] [-max SUBDOMAIN_MAX_LENGTH] [-n NUM_ANSWERS] [--subdir] [--subdir-format SUBDIR_FORMAT] [--subdom] [--subdom-format SUBDOM_FORMAT] [-m] [-t NUM_THREADS]
 
-sl0ppy-SubBrute.p
+sl0ppy-SubBrute.py
 
 optional arguments:
 -d, --target-domain  : Target domain to brute-force (required)
