@@ -12,10 +12,21 @@ sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories.
 * `A auto checks for legacy cpu up to 4core are seen as legacy, newer with 6 or more cores would be considered new.`
 
 # optimizations
-* `aiohttp`
-* `asyncio`
-* `Memory optimization`
-  
+```
+    Asynchronous DNS Resolution: The script uses asynchronous DNS resolution using the aiohttp library. This allows multiple DNS queries to be made simultaneously, reducing the overall time taken for the brute-forcing process.
+
+    DNS Cache: The script maintains a DNS cache to store resolved domains, preventing redundant DNS queries for the same domain.
+
+    Multithreading: The script provides an option to enable multithreading (-m or --enable-multithread). When enabled, it utilizes multiple worker threads to perform subdomain brute-forcing, further speeding up the process.
+
+    Progress Bar: The script uses the tqdm library to display a progress bar, giving real-time updates on the progress of the brute-forcing process.
+
+    Memory Monitoring: A separate thread is used to monitor memory usage. If memory usage exceeds a certain threshold, the script will pause for a short duration to prevent excessive memory consumption.
+
+    Optimization of Subdomain and Subdirectory Generation: The script generates subdomains and subdirectories using iterators and generators, which reduces memory usage and improves performance.
+
+    DNS Query Optimization: The script has been optimized to query for AAAA records as well, in addition to A records, to handle IPv6 addresses.
+```  
 # Lightweight 
 * optimized it so its lightweight, can run whilst other processes run, like youtube in backgrond without exhausting the memory.
 
