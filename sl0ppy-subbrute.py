@@ -16,6 +16,8 @@ import itertools
 import threading
 import dns.resolver
 import concurrent.futures
+
+# from imports
 from tqdm import tqdm
 from urllib.parse import urlparse
 from colorama import Fore, Style, init
