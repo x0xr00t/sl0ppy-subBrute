@@ -240,10 +240,14 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
         if enable_multithread:
             if has_gpu() and enable_subdir:
                 cpu_cores = psutil.cpu_count(logical=False)
-                max_threads = max(cpu_cores - 1, 1)
-                cpu_threads = min(cpu_cores, max_threads, num_threads)
-                num_threads = cpu_threads
-                executor = concurrent.futures.ThreadPoolExecutor(max_workers=cpu_threads)
+                if cpu_cores > 4:
+                    max_threads = max(cpu_cores - 1, 1)
+                    cpu_threads = min(cpu_cores, max_threads, num_threads)
+                    num_threads = cpu_threads
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=cpu_threads)
+                else:
+                    print(f"{Fore.RED}[!] Warning: The CPU has 4 cores or less. Disabling multithreading.{Style.RESET_ALL}")
+                    enable_multithread = False
             else:
                 cpu_threads = num_threads
                 num_threads = 1
@@ -297,7 +301,7 @@ if __name__ == "__main__":
     num_threads = args.num_threads
 
     if enable_subdir and enable_subdom:
-        print(f"{Fore.YELLOW}[{Fore.RED}!{Fore.YELLOW}] {Fore.RED}Warning{Fore.WHITE}: {Fore.YELLOW}Both {Fore.GREEN}--subdir {Fore.YELLOW}and {Fore.GREEN}--subdom {Fore.YELLOW}are enabled{Fore.WHITE}. {Fore.YELLOW}This may cause a longer runtime{Fore.White}.{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[{Fore.RED}!{Fore.YELLOW}] {Fore.RED}Warning{Fore.WHITE}: {Fore.YELLOW}Both {Fore.GREEN}--subdir {Fore.YELLOW}and {Fore.GREEN}--subdom {Fore.YELLOW}are enabled{Fore.WHITE}. {Fore.YELLOW}This may cause a longer runtime{Fore.WHITE}.{Style.RESET_ALL}")
 
     get_mem_usage()
     memory_monitor_thread = threading.Thread(target=monitor_memory)
