@@ -170,13 +170,13 @@ async def generate_subdirs(target_domain, characters):
             if subdir:
                 yield f"{target_domain}/{subdir}"
 
-async def brute_force_subdomains(session, target_domain, min_length, max_length, num_answers, pbar, found_domains, sem, tested_urls):
+async def brute_force_subdomains(session, target_domain, min_length, max_length, num_answers, pbar, found_domains, sem, tested_urls, enable_subdom):
     async for subdomain in generate_subdomains(target_domain, min_length, max_length):
         target = construct_url(target_domain, subdomain)
 
         if target not in tested_urls:
             async with sem:
-                pbar.set_description(f'{Fore.GREEN}Testing{Fore.WHITE}: {subdomain}')
+                pbar.set_description(f'{Fore.GREEN}Testing{Fore.WHITE}: {subdomain}.{target_domain}' if enable_subdom else f'{Fore.GREEN}Testing{Fore.WHITE}: {subdomain}')
                 pbar.update(1)
 
             try:
@@ -185,7 +185,7 @@ async def brute_force_subdomains(session, target_domain, min_length, max_length,
                         found_domains.add(target)
                         tested_urls.add(target)
                         async with sem:
-                            pbar.set_description(f'{Fore.GREEN}Found{Fore.WHITE}: {subdomain}{Style.RESET_ALL}')
+                            pbar.set_description(f'{Fore.GREEN}Found{Fore.WHITE}: {subdomain}.{target_domain}{Style.RESET_ALL}' if enable_subdom else f'{Fore.GREEN}Found{Fore.WHITE}: {subdomain}{Style.RESET_ALL}')
                             pbar.update(1)
             except aiohttp.ClientError:
                 pass
@@ -267,7 +267,7 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
                 loop.close()
         else:
             async with aiohttp.ClientSession() as session:
-                subdomain_coroutine = brute_force_subdomains(session, target_domain, subdomain_min_length, subdomain_max_length, num_answers, pbar, found_domains, sem, tested_urls)
+                subdomain_coroutine = brute_force_subdomains(session, target_domain, subdomain_min_length, subdomain_max_length, num_answers, pbar, found_domains, sem, tested_urls, enable_subdom)
                 subdomain_task = asyncio.create_task(subdomain_coroutine)
 
             if enable_subdir:
