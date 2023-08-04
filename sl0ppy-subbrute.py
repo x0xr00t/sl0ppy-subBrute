@@ -25,12 +25,14 @@ from colorama import Fore, Style, init
 # Global variable to store the current memory usage percentage
 current_mem_usage = 0
 
+# get mem_usage
 def get_mem_usage():
     # Get the current memory usage percentage
     global current_mem_usage
     mem = psutil.virtual_memory()
     current_mem_usage = mem.percent
 
+# monitor mem
 def monitor_memory():
     while True:
         # Check memory usage every 5 seconds
@@ -42,6 +44,7 @@ def monitor_memory():
             # If memory usage is below 90%, sleep for 1 second and check again
             time.sleep(1)
 
+# check for gpu
 def has_gpu():
     try:
         sensors = psutil.sensors_temperatures()
@@ -51,6 +54,7 @@ def has_gpu():
         pass
     return False
 
+# print banner
 def print_banner():
     init(autoreset=True)
     banner = """
@@ -92,6 +96,7 @@ def print_banner():
 # Global DNS cache to store resolved domains
 dns_cache = {}
 
+# async resolve domain
 async def resolve_domain(session, target, num_answers, pbar, found_domains, sem, tested_urls, enable_subdom):
     if target in dns_cache:
         answers = dns_cache[target]
@@ -136,6 +141,7 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains, sem,
                 pbar.set_description(f'{Fore.GREEN}Found: {target_domain}{Style.RESET_ALL}')
                 pbar.update(1)
 
+# async brute-force subdirs
 async def brute_force_subdirs(session, target_domain, characters, pbar, found_pages, sem, tested_urls, enable_multithread, enable_subdir):
     async for subdir in generate_subdirs(target_domain, characters):
         subdir_url = subdir
@@ -164,7 +170,7 @@ async def brute_force_subdirs(session, target_domain, characters, pbar, found_pa
             except Exception as e:
                 pass
 
-
+# async generate subdir
 async def generate_subdirs(target_domain, characters):
     for length in range(1, 20):
         for combination in itertools.product(characters, repeat=length):
@@ -172,6 +178,7 @@ async def generate_subdirs(target_domain, characters):
             if subdir:
                 yield f"{target_domain}/{subdir}"
 
+# async brute-force subdomains
 async def brute_force_subdomains(session, target_domain, min_length, max_length, num_answers, pbar, found_domains, sem, tested_urls, enable_subdom):
     async for subdomain in generate_subdomains(target_domain, min_length, max_length):
         target = construct_url(target_domain, subdomain)
@@ -196,7 +203,7 @@ async def brute_force_subdomains(session, target_domain, min_length, max_length,
             except Exception as e:
                 pass
 
-
+# async generate subdomains
 async def generate_subdomains(target_domain, min_length, max_length):
     characters = string.ascii_letters + string.digits
     for length in range(min_length, max_length + 1):
@@ -205,6 +212,7 @@ async def generate_subdomains(target_domain, min_length, max_length):
             if subdomain:
                 yield subdomain
 
+# construct url
 def construct_url(target_domain, subdomain_url):
     if target_domain.startswith("http://") or target_domain.startswith("https://"):
         parsed_url = urlparse(target_domain)
@@ -215,10 +223,12 @@ def construct_url(target_domain, subdomain_url):
     else:
         return f"{subdomain_url}.{target_domain}"
 
+# mem usage check
 def check_memory_usage():
     mem = psutil.virtual_memory()
     return mem.percent
 
+# async brute-force subdomains
 async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, enable_subdom, enable_multithread, num_threads):
     found_domains = set()
     found_pages = set()
@@ -282,6 +292,7 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
 
     return found_domains, found_pages
 
+# main arguments
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Sl0ppy Brute - A brute-force subdomain and subdirectory enumeration tool")
     parser.add_argument("target_domain", help="The target domain to brute-force")
@@ -294,21 +305,25 @@ if __name__ == "__main__":
     parser.add_argument("--num-threads", type=int, default=10, help="Number of threads to use for multithreading")
 
     args = parser.parse_args()
-
+    
+    # print banner
     print_banner()
 
     enable_subdir = args.subdir
     enable_subdom = args.subdom
     enable_multithread = args.multithread
     num_threads = args.num_threads
-
+    
+    # Warning if --subdir & subdom enabled at the same time, shows warning that it can take a long time.
     if enable_subdir and enable_subdom:
         print(f"{Fore.YELLOW}[{Fore.RED}!{Fore.YELLOW}] {Fore.RED}Warning{Fore.WHITE}: {Fore.YELLOW}Both {Fore.GREEN}--subdir {Fore.YELLOW}and {Fore.GREEN}--subdom {Fore.YELLOW}are enabled{Fore.WHITE}. {Fore.YELLOW}This may cause a longer runtime{Fore.WHITE}.{Style.RESET_ALL}")
-
+    
+    # get mem usage
     get_mem_usage()
     memory_monitor_thread = threading.Thread(target=monitor_memory)
     memory_monitor_thread.start()
-
+    
+    # found domains
     try:
         found_domains, found_pages = asyncio.run(
             brute_force_domains(
@@ -328,8 +343,10 @@ if __name__ == "__main__":
         print(f"\n{Fore.GREEN}[+] Found Pages:{Style.RESET_ALL}")
         for page in found_pages:
             print(page)
+    # ctrl+c interrupted 
     except KeyboardInterrupt:
         print(f"{Fore.RED}\n[-] User interrupted the process. Exiting...{Style.RESET_ALL}")
         os._exit(0)
 
+    # mem monitor thread
     memory_monitor_thread.join()
