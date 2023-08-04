@@ -133,7 +133,7 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains, sem,
             async with sem:
                 pbar.set_description(f'{Fore.GREEN}Found: {target_domain}{Style.RESET_ALL}')
                 pbar.update(1)
-                
+
 async def brute_force_subdirs(session, target_domain, characters, pbar, found_pages, sem, tested_urls, enable_multithread, enable_subdir):
     async for subdir in generate_subdirs(target_domain, characters):
         subdir_url = subdir
@@ -169,28 +169,37 @@ async def generate_subdirs(target_domain, characters):
             subdir = ''.join(combination)
             yield f"{target_domain}/{subdir}"
 
-async def generate_subdomains(target_domain, min_length, max_length, enable_subdom):
-    base_chars = string.ascii_lowercase + string.digits
+async def brute_force_subdomains(session, target_domain, min_length, max_length, num_answers, pbar, found_domains, sem, tested_urls):
+    async for subdomain in generate_subdomains(target_domain, min_length, max_length):
+        target = construct_url(target_domain, subdomain)
 
-    async def generate_subdomains_length(length):
-        for combination in itertools.product(base_chars, repeat=length):
-            subdomain = ''.join(combination)
-            if enable_subdom:
-                # If subdomain is empty, just yield the target_domain directly
-                if not subdomain:
-                    yield target_domain
-                else:
-                    yield subdomain
-            else:
-                # Yield the subdomain with the "testchars" prefix if subdomain is empty
-                yield f"testchars.{subdomain}" if not subdomain else subdomain
+        if target not in tested_urls:
+            async with sem:
+                pbar.set_description(f'Testing: {subdomain}')
+                pbar.update(1)
 
-    tasks = []
+            try:
+                async with session.get(target) as response:
+                    if response.status == 200:
+                        found_domains.add(target)
+                        tested_urls.add(target)
+                        async with sem:
+                            pbar.set_description(f'{Fore.GREEN}Found: {subdomain}{Style.RESET_ALL}')
+                            pbar.update(1)
+            except aiohttp.ClientError:
+                pass
+            except asyncio.TimeoutError:
+                pass
+            except Exception as e:
+                pass
+
+
+async def generate_subdomains(target_domain, min_length, max_length):
+    characters = string.ascii_letters + string.digits
     for length in range(min_length, max_length + 1):
-        tasks.append(generate_subdomains_length(length))
-
-    async for subdomain in itertools.chain(*tasks):
-        yield subdomain
+        for combination in itertools.product(characters, repeat=length):
+            subdomain = ''.join(combination)
+            yield subdomain
 
 def construct_url(target_domain, subdomain_url):
     if target_domain.startswith("http://") or target_domain.startswith("https://"):
@@ -209,7 +218,7 @@ def check_memory_usage():
 async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max_length, num_answers, enable_subdir, enable_subdom, enable_multithread, num_threads):
     found_domains = set()
     found_pages = set()
-    tested_urls = set()  # A set to keep track of tested URLs and avoid duplicates in the progress bar
+    tested_urls = set()
 
     total_combinations = sum(len(string.ascii_letters + string.digits) ** length for length in range(subdomain_min_length, subdomain_max_length + 1))
 
@@ -243,7 +252,7 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
                 asyncio.set_event_loop(loop)
                 tasks = []
 
-                async for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length, enable_subdom):
+                async for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length):
                     if not enable_subdom:
                         subdomain_url = f"{subdomain}"
                     else:
@@ -256,17 +265,12 @@ async def brute_force_domains(target_domain, subdomain_min_length, subdomain_max
                 loop.close()
         else:
             async with aiohttp.ClientSession() as session:
-                async for subdomain in generate_subdomains(target_domain, subdomain_min_length, subdomain_max_length, enable_subdom):
-                    if not enable_subdom:
-                        subdomain_url = f"{subdomain}"
-                    else:
-                        subdomain_url = subdomain
-                    if subdomain_url not in tested_urls:  # Skip if already tested to avoid duplicates
-                        target = construct_url(target_domain, subdomain_url)
-                        await resolve_domain(session, target, num_answers, pbar, found_domains, sem, tested_urls, enable_subdom)
+                subdomain_coroutine = brute_force_subdomains(session, target_domain, subdomain_min_length, subdomain_max_length, num_answers, pbar, found_domains, sem, tested_urls)
+                subdomain_task = asyncio.create_task(subdomain_coroutine)
 
-        if enable_subdir:
-            await subdir_task
+            if enable_subdir:
+                await subdir_task
+            await subdomain_task
 
     return found_domains, found_pages
 
