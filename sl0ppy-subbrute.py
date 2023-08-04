@@ -95,29 +95,28 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains, sem,
         answers = dns_cache[target]
     else:
         try:
-            answers = 'A' * num_answers
-            for answer in answers:
-                # Perform testing here and update the progress bar description accordingly
-                async with sem:
-                    if target.startswith("http://") or target.startswith("https://"):
-                        target_domain = urlparse(target).netloc
+            # Perform testing here and update the progress bar description accordingly
+            async with sem:
+                if target.startswith("http://") or target.startswith("https://"):
+                    target_domain = urlparse(target).netloc
+                else:
+                    target_domain = target
+                if enable_subdom:
+                    if '.' in target_domain:
+                        subdomain, _, target_domain = target_domain.partition('.')
+                        if not subdomain.isalpha():
+                            subdomain = ""  # Empty subdomain name for non-alphabetic characters
+                        target_domain = f"{subdomain}.{target_domain}"
                     else:
-                        target_domain = target
-                    if enable_subdom:
-                        if '.' in target_domain:
-                            subdomain, _, target_domain = target_domain.partition('.')
-                            if not subdomain.isalpha():
-                                subdomain = "testchars"  # Default subdomain name for non-alphabetic characters
-                            target_domain = f"{subdomain}.{target_domain}"
-                        else:
-                            target_domain = f"testchars.{target_domain}"  # Default subdomain name for no subdomain specified
-                    if not target_domain.startswith("http://") and not target_domain.startswith("https://"):
-                        target_domain = f"{target_domain}"  # Add http:// prefix for correct display
-                    pbar.set_description(f'Testing: {target_domain}')
-                    pbar.update(1)
+                        target_domain = f"testchars.{target_domain}"  # Default subdomain name for no subdomain specified
+                if not target_domain.startswith("http://") and not target_domain.startswith("https://"):
+                    target_domain = f"{target_domain}"  # Add http:// prefix for correct display
+                pbar.set_description(f'Testing: {target_domain}')
+                pbar.update(1)
 
-                answers = dns.resolver.resolve(target, 'A')
-                break
+            answers = dns.resolver.resolve(target, 'A')
+            # Update the DNS cache
+            dns_cache[target] = answers
         except dns.resolver.NXDOMAIN:
             answers = None
         except dns.resolver.NoAnswer:
@@ -127,9 +126,6 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains, sem,
         except dns.exception.Timeout:
             answers = None
 
-        # Update the DNS cache
-        dns_cache[target] = answers
-
     if answers:
         found_domains.add(target)
         if target not in tested_urls:
@@ -137,7 +133,7 @@ async def resolve_domain(session, target, num_answers, pbar, found_domains, sem,
             async with sem:
                 pbar.set_description(f'{Fore.GREEN}Found: {target_domain}{Style.RESET_ALL}')
                 pbar.update(1)
-
+                
 async def brute_force_subdirs(session, target_domain, characters, pbar, found_pages, sem, tested_urls, enable_multithread, enable_subdir):
     async for subdir in generate_subdirs(target_domain, characters):
         subdir_url = subdir
@@ -174,14 +170,27 @@ async def generate_subdirs(target_domain, characters):
             yield f"{target_domain}/{subdir}"
 
 async def generate_subdomains(target_domain, min_length, max_length, enable_subdom):
-    characters = string.ascii_letters + string.digits
-    for length in range(min_length, max_length + 1):
-        for combination in itertools.product(characters, repeat=length):
+    base_chars = string.ascii_lowercase + string.digits
+
+    async def generate_subdomains_length(length):
+        for combination in itertools.product(base_chars, repeat=length):
             subdomain = ''.join(combination)
             if enable_subdom:
-                yield subdomain  # Generate subdomains without testchars prefix
+                # If subdomain is empty, just yield the target_domain directly
+                if not subdomain:
+                    yield target_domain
+                else:
+                    yield subdomain
             else:
-                yield f"testchars.{subdomain}"  # Add testchars prefix for non-subdomains
+                # Yield the subdomain with the "testchars" prefix if subdomain is empty
+                yield f"testchars.{subdomain}" if not subdomain else subdomain
+
+    tasks = []
+    for length in range(min_length, max_length + 1):
+        tasks.append(generate_subdomains_length(length))
+
+    async for subdomain in itertools.chain(*tasks):
+        yield subdomain
 
 def construct_url(target_domain, subdomain_url):
     if target_domain.startswith("http://") or target_domain.startswith("https://"):
