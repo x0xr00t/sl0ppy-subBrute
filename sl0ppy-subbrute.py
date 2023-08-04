@@ -84,7 +84,7 @@ def print_banner():
         line_num += 1
 
     print(colored_banner)
-    print("{I} Cause we brute-force all your subdomains & subdirs in a sl0ppy manner ;)")
+    print(f"{Fore.GREEN}[{Fore.WHITE}I{Fore.GREEN}] {Fore.YELLOW}Cause we {Fore.RED}brute-force {Fore.YELLOW}all your {Fore.RED}subdomains {Fore.YELLOW}& {Fore.RED}subdirs {Fore.YELLOW}in a {Fore.RED}sl0ppy {Fore.YELLOW}manner {Fore.WHITE};)")
     print(Style.RESET_ALL)
 
 # Global DNS cache to store resolved domains
@@ -167,7 +167,8 @@ async def generate_subdirs(target_domain, characters):
     for length in range(1, 20):
         for combination in itertools.product(characters, repeat=length):
             subdir = ''.join(combination)
-            yield f"{target_domain}/{subdir}"
+            if subdir:
+                yield f"{target_domain}/{subdir}"
 
 async def brute_force_subdomains(session, target_domain, min_length, max_length, num_answers, pbar, found_domains, sem, tested_urls):
     async for subdomain in generate_subdomains(target_domain, min_length, max_length):
@@ -175,7 +176,7 @@ async def brute_force_subdomains(session, target_domain, min_length, max_length,
 
         if target not in tested_urls:
             async with sem:
-                pbar.set_description(f'Testing: {subdomain}')
+                pbar.set_description(f'{Fore.GREEN}Testing{Fore.WHITE}: {subdomain}')
                 pbar.update(1)
 
             try:
@@ -184,7 +185,7 @@ async def brute_force_subdomains(session, target_domain, min_length, max_length,
                         found_domains.add(target)
                         tested_urls.add(target)
                         async with sem:
-                            pbar.set_description(f'{Fore.GREEN}Found: {subdomain}{Style.RESET_ALL}')
+                            pbar.set_description(f'{Fore.GREEN}Found{Fore.WHITE}: {subdomain}{Style.RESET_ALL}')
                             pbar.update(1)
             except aiohttp.ClientError:
                 pass
@@ -199,7 +200,8 @@ async def generate_subdomains(target_domain, min_length, max_length):
     for length in range(min_length, max_length + 1):
         for combination in itertools.product(characters, repeat=length):
             subdomain = ''.join(combination)
-            yield subdomain
+            if subdomain:
+                yield subdomain
 
 def construct_url(target_domain, subdomain_url):
     if target_domain.startswith("http://") or target_domain.startswith("https://"):
@@ -278,7 +280,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Sl0ppy Brute - A brute-force subdomain and subdirectory enumeration tool")
     parser.add_argument("target_domain", help="The target domain to brute-force")
     parser.add_argument("--subdomain-min-length", type=int, default=1, help="Minimum length of subdomains")
-    parser.add_argument("--subdomain-max-length", type=int, default=3, help="Maximum length of subdomains")
+    parser.add_argument("--subdomain-max-length", type=int, default=8, help="Maximum length of subdomains")
     parser.add_argument("--num-answers", type=int, default=3, help="Number of DNS query answers to wait for")
     parser.add_argument("--subdir", action="store_true", help="Enable brute-forcing subdirectories")
     parser.add_argument("--subdom", action="store_true", help="Enable brute-forcing subdomains")
@@ -295,7 +297,7 @@ if __name__ == "__main__":
     num_threads = args.num_threads
 
     if enable_subdir and enable_subdom:
-        print(f"{Fore.YELLOW}[!] Warning: Both --subdir and --subdom are enabled. This may cause a longer runtime.{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[{Fore.RED}!{Fore.YELLOW}] {Fore.RED}Warning{Fore.WHITE}: {Fore.YELLOW}Both {Fore.GREEN}--subdir {Fore.YELLOW}and {Fore.GREEN}--subdom {Fore.YELLOW}are enabled{Fore.WHITE}. {Fore.YELLOW}This may cause a longer runtime{Fore.White}.{Style.RESET_ALL}")
 
     get_mem_usage()
     memory_monitor_thread = threading.Thread(target=monitor_memory)
