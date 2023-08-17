@@ -44,15 +44,17 @@ def monitor_memory():
             # If memory usage is below 90%, sleep for 1 second and check again
             time.sleep(1)
 
-# check for gpu
-def has_gpu():
-    try:
-        sensors = psutil.sensors_temperatures()
-        if 'nvidia' in sensors or 'amdgpu' in sensors:
-            return True
-    except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.TimeoutExpired):
-        pass
-    return False
+def has_sufficient_resources():
+    # Get CPU usage percentage
+    cpu_usage = psutil.cpu_percent()
+
+    # Check if NVIDIA or AMD GPU sensors are available
+    has_nvidia_gpu = 'nvidia' in psutil.sensors_temperatures()
+    has_amdgpu_gpu = 'amdgpu' in psutil.sensors_temperatures()
+
+    # Decide whether to enable multithreading based on resource usage
+    enable_multithread = cpu_usage < 90 and not (has_nvidia_gpu or has_amdgpu_gpu)
+    return enable_multithread
 
 # print banner
 def print_banner():
@@ -311,8 +313,10 @@ if __name__ == "__main__":
 
     enable_subdir = args.subdir
     enable_subdom = args.subdom
-    enable_multithread = args.multithread
     num_threads = args.num_threads
+
+    # Check if there are sufficient resources to enable multithreading
+    enable_multithread = has_sufficient_resources()
     
     # Warning if --subdir & subdom enabled at the same time, shows warning that it can take a long time.
     if enable_subdir and enable_subdom:
@@ -333,7 +337,7 @@ if __name__ == "__main__":
                 args.num_answers,
                 enable_subdir,
                 enable_subdom,
-                enable_multithread,
+                enable_multithread,  # Use the calculated value here
                 num_threads,
             )
         )
