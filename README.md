@@ -13,7 +13,6 @@ sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories.
 
 # Here's an overview of what the code does:
 ```
-    It imports various Python libraries for tasks like DNS resolution, HTTP requests, progress bar visualization, and more.
 
     The script defines several functions for different tasks:
         get_mem_usage(): Retrieves memory usage percentage.
@@ -27,12 +26,6 @@ sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories.
         check_memory_usage(): Checks current memory usage percentage.
         brute_force_subdomains(): Asynchronously brute-forces subdomains.
         generate_subdomains(): Generates possible subdomains to brute-force.
-
-    The brute_force_domains() function is the main part of the script where subdomain and subdirectory enumeration takes place. It uses asynchronous and multithreaded techniques to perform the brute-forcing. The results (found domains and pages) are printed at the end.
-
-    The script takes command-line arguments to specify the target domain, subdomain length, number of DNS answers to wait for, whether to enable subdirectory or subdomain brute-forcing, and multithreading options.
-
-    It also includes a banner that is displayed when the script is run.
 ```
 
 # optimizations
