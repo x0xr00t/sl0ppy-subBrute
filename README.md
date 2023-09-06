@@ -11,6 +11,30 @@ sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories.
 # legacy cpu check
 * `A auto checks for legacy cpu up to 4core are seen as legacy, newer with 6 or more cores would be considered new.`
 
+# Here's an overview of what the code does:
+```
+    It imports various Python libraries for tasks like DNS resolution, HTTP requests, progress bar visualization, and more.
+
+    The script defines several functions for different tasks:
+        get_mem_usage(): Retrieves memory usage percentage.
+        monitor_memory(): Monitors memory usage and waits if it goes above 90%.
+        has_sufficient_resources(): Checks if there are sufficient resources (CPU, GPU) to enable multithreading.
+        print_banner(): Displays a colorful banner when the script is executed.
+        resolve_domain(): Asynchronously resolves domain names using DNS queries.
+        brute_force_subdirs(): Asynchronously brute-forces subdirectories.
+        generate_subdirs(): Generates possible subdirectories to brute-force.
+        construct_url(): Constructs URLs for testing.
+        check_memory_usage(): Checks current memory usage percentage.
+        brute_force_subdomains(): Asynchronously brute-forces subdomains.
+        generate_subdomains(): Generates possible subdomains to brute-force.
+
+    The brute_force_domains() function is the main part of the script where subdomain and subdirectory enumeration takes place. It uses asynchronous and multithreaded techniques to perform the brute-forcing. The results (found domains and pages) are printed at the end.
+
+    The script takes command-line arguments to specify the target domain, subdomain length, number of DNS answers to wait for, whether to enable subdirectory or subdomain brute-forcing, and multithreading options.
+
+    It also includes a banner that is displayed when the script is run.
+```
+
 # optimizations
 ```
     Asynchronous DNS Resolution: The script uses asynchronous DNS resolution using the aiohttp library. This allows multiple DNS queries to be made simultaneously, reducing the overall time taken for the brute-forcing process.
