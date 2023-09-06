@@ -1,6 +1,7 @@
-asyncio
-aiohttp
-dnspython
-psutil
-tqdm
-colorama
+aiohttp==3.8.1
+asyncio==3.4.3
+beautifulsoup4==4.9.3
+colorama==0.4.4
+dns-python==2.0.0
+psutil==5.7.3
+tqdm==4.62.0
