@@ -75,9 +75,8 @@ optional arguments:
 -m, --enable-multithread : Enable multithreaded execution (default: False)
 -t, --num-threads : Number of worker threads for multithreading (default: 2)
 ```
+# To run the tool, you would typically execute it from the command line and provide the necessary arguments. For example:
 
-For example, to run the script with the target domain example.com and enable multithreading with 4 threads, you can use the following command:
-
-`python sl0ppy-SubBrute.py -d example.com -m -t 4`
+`python sl0ppy-subBrute.py example.com --subdom --subdir --num-threads 10`
 
 The script will start brute-forcing the subdomains and subdirectories and print the found results in real-time. Please note that the execution time will vary depending on the complexity of the target domain and the specified options.
