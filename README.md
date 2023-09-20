@@ -68,7 +68,7 @@ optional arguments:
 -m, --enable-multithread : Enable multithreaded execution (default: False)
 -t, --num-threads : Number of worker threads for multithreading (default: 2)
 ```
-# To run the tool, you would typically execute it from the command line and provide the necessary arguments. For example:
+# Example:
 
 `python sl0ppy-subBrute.py example.com --subdom --subdir --num-threads 10`
 
