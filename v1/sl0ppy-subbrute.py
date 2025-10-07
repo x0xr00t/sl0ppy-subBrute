@@ -2,7 +2,7 @@
 # Team   : Sl0ppyr00t
 # AKA    : x0xr00t
 # Author : p.hoogeveen
-# Tool   : Sl0ppy-subBrute
+# Tool   : Sl0ppy-subBrutev1
 
 # imports
 import os
