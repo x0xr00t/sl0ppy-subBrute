@@ -1,9 +1,10 @@
-# sl0ppy-SubBrute
+# sl0ppy-SubBrute v2
 sl0ppy-subBrute a Python3 based brute forcer for subdomains and subdirectories. 
 
 # GPU Support
 * `AMD`
 * `NVIDIA`
+* `Intel`
 
 # gpu check
 * `It has a automated gpu check function`
